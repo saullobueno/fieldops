@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type { CustomerDetail, CustomerListResponse, CustomerSummary } from "@fieldops/types";
 import type pg from "pg";
@@ -9,6 +11,17 @@ export interface CustomerListFilter {
   readonly search?: string;
   readonly limit: number;
   readonly offset: number;
+}
+
+export interface CustomerWriteInput {
+  readonly organizationId: string;
+  readonly name: string;
+  readonly externalRef: string | null;
+  readonly notes: string | null;
+}
+
+export interface CustomerUpdateInput extends CustomerWriteInput {
+  readonly id: string;
 }
 
 interface CustomerSummaryRow {
@@ -92,6 +105,60 @@ export class CustomersService {
       }
 
       return getFromMemory(id, organizationId);
+    }
+  }
+
+  async create(input: CustomerWriteInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      return createInMemory(input);
+    }
+
+    try {
+      const id = await this.createInDatabase(input);
+      return await this.getFromDatabase(id, input.organizationId);
+    } catch {
+      return createInMemory(input);
+    }
+  }
+
+  async update(input: CustomerUpdateInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      return updateInMemory(input);
+    }
+
+    try {
+      await this.updateInDatabase(input);
+      return await this.getFromDatabase(input.id, input.organizationId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      return updateInMemory(input);
+    }
+  }
+
+  private async createInDatabase(input: CustomerWriteInput): Promise<string> {
+    const result = await this.postgresPool!.query<{ id: string }>(
+      `insert into customers (organization_id, name, external_ref, notes)
+       values ($1, $2, $3, $4)
+       returning id`,
+      [input.organizationId, input.name, input.externalRef, input.notes]
+    );
+
+    return result.rows[0]!.id;
+  }
+
+  private async updateInDatabase(input: CustomerUpdateInput): Promise<void> {
+    const result = await this.postgresPool!.query(
+      `update customers
+       set name = $3, external_ref = $4, notes = $5, updated_at = now()
+       where id = $1 and organization_id = $2`,
+      [input.id, input.organizationId, input.name, input.externalRef, input.notes]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException("Cliente não encontrado.");
     }
   }
 
@@ -363,6 +430,45 @@ function getFromMemory(id: string, organizationId: string): CustomerDetail {
   }
 
   return item;
+}
+
+function createInMemory(input: CustomerWriteInput): CustomerDetail {
+  const created: CustomerDetail = {
+    assets: [],
+    contacts: [],
+    contracts: [],
+    externalRef: input.externalRef,
+    id: randomUUID(),
+    name: input.name,
+    notes: input.notes,
+    openWorkOrdersCount: 0,
+    organizationId: input.organizationId,
+    sites: [],
+    sitesCount: 0
+  };
+
+  customers.push(created);
+  return created;
+}
+
+function updateInMemory(input: CustomerUpdateInput): CustomerDetail {
+  const index = customers.findIndex(
+    (candidate) => candidate.id === input.id && candidate.organizationId === input.organizationId
+  );
+
+  if (index === -1) {
+    throw new NotFoundException("Cliente não encontrado.");
+  }
+
+  const updated: CustomerDetail = {
+    ...customers[index]!,
+    externalRef: input.externalRef,
+    name: input.name,
+    notes: input.notes
+  };
+
+  customers[index] = updated;
+  return updated;
 }
 
 function toSummaryFromDetail(detail: CustomerDetail): CustomerSummary {

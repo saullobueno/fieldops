@@ -7,7 +7,7 @@ import type {
   CustomerSummary
 } from "@fieldops/types";
 import { AppShell, Button } from "@fieldops/ui";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { apiBaseUrl, apiFetch } from "../../lib/api-client";
@@ -17,14 +17,24 @@ const pageSize = 20;
 
 export default function CustomersPage(): React.ReactNode {
   const { logout, session } = useRequireAuth();
+  const queryClient = useQueryClient();
   const [limit, setLimit] = useState(pageSize);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState("00000000-0000-4000-8000-000000000301");
   const [selectedAssetId, setSelectedAssetId] = useState<string | undefined>(undefined);
+  const [isCreating, setIsCreating] = useState(false);
   const listQuery = useQuery({
     enabled: Boolean(session),
     queryFn: () => fetchCustomers({ limit, search }),
     queryKey: ["customers", limit, search]
+  });
+  const createMutation = useMutation({
+    mutationFn: (input: CustomerWritePayload) => createCustomer(input),
+    onSuccess: async (created) => {
+      setIsCreating(false);
+      setSelectedId(created.id);
+      await queryClient.invalidateQueries({ queryKey: ["customers"] });
+    }
   });
 
   const selectedFromList = useMemo(
@@ -39,6 +49,11 @@ export default function CustomersPage(): React.ReactNode {
   return (
     <AppShell
       activeHref="/clientes"
+      headerAction={
+        <Button onClick={() => setIsCreating((current) => !current)} variant="primary">
+          {isCreating ? "Cancelar" : "Novo cliente"}
+        </Button>
+      }
       headerEyebrow="Cadastro"
       headerTitle="Clientes, locais e ativos"
       onLogout={logout}
@@ -46,6 +61,19 @@ export default function CustomersPage(): React.ReactNode {
     >
       <div className="grid flex-1 gap-5 p-6 xl:grid-cols-[1fr_420px] max-sm:p-4">
         <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+          {isCreating ? (
+            <div className="mb-4">
+              <CustomerForm
+                isPending={createMutation.isPending}
+                onCancel={() => setIsCreating(false)}
+                onSubmit={(input) => createMutation.mutate(input)}
+                submitLabel="Criar cliente"
+              />
+              {createMutation.isError ? (
+                <p className="mt-2 text-sm text-[#B42318]">Não foi possível criar o cliente.</p>
+              ) : null}
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-center gap-3">
             <input
               aria-label="Buscar clientes"
@@ -89,6 +117,78 @@ export default function CustomersPage(): React.ReactNode {
         />
       </div>
     </AppShell>
+  );
+}
+
+interface CustomerWritePayload {
+  readonly name: string;
+  readonly externalRef: string | null;
+  readonly notes: string | null;
+}
+
+function CustomerForm({
+  initial,
+  isPending,
+  onCancel,
+  onSubmit,
+  submitLabel
+}: {
+  initial?: CustomerWritePayload;
+  isPending: boolean;
+  onCancel: () => void;
+  onSubmit: (input: CustomerWritePayload) => void;
+  submitLabel: string;
+}): React.ReactNode {
+  const [name, setName] = useState(initial?.name ?? "");
+  const [externalRef, setExternalRef] = useState(initial?.externalRef ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+
+  return (
+    <form
+      className="flex flex-col gap-2 rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const trimmedName = name.trim();
+        if (!trimmedName) {
+          return;
+        }
+
+        onSubmit({
+          externalRef: externalRef.trim() || null,
+          name: trimmedName,
+          notes: notes.trim() || null
+        });
+      }}
+    >
+      <input
+        aria-label="Nome do cliente"
+        className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+        onChange={(event) => setName(event.target.value)}
+        placeholder="Nome do cliente"
+        required
+        value={name}
+      />
+      <input
+        aria-label="Referência externa"
+        className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+        onChange={(event) => setExternalRef(event.target.value)}
+        placeholder="Referência externa (opcional)"
+        value={externalRef}
+      />
+      <textarea
+        aria-label="Notas"
+        className="min-h-16 resize-y rounded-md border border-[#C7D0CB] bg-white px-3 py-2 text-sm outline-none focus:border-[#0E5F4B]"
+        onChange={(event) => setNotes(event.target.value)}
+        placeholder="Notas (opcional)"
+        value={notes}
+      />
+      <div className="flex gap-2">
+        <Button disabled={isPending || !name.trim()} type="submit" variant="primary">
+          {isPending ? "Salvando..." : submitLabel}
+        </Button>
+        <Button onClick={onCancel} type="button" variant="secondary">Cancelar</Button>
+      </div>
+    </form>
   );
 }
 
@@ -151,10 +251,22 @@ function CustomerDetailPanel({
   customerId: string;
   onSelectAsset: (id: string) => void;
 }): React.ReactNode {
+  const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
   const detailQuery = useQuery({
     enabled: Boolean(customerId),
     queryFn: () => fetchCustomerDetail(customerId),
     queryKey: ["customer-detail", customerId]
+  });
+  const updateMutation = useMutation({
+    mutationFn: (input: CustomerWritePayload) => updateCustomer(customerId, input),
+    onSuccess: async () => {
+      setIsEditing(false);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["customer-detail", customerId] }),
+        queryClient.invalidateQueries({ queryKey: ["customers"] })
+      ]);
+    }
   });
 
   if (detailQuery.isLoading) {
@@ -175,8 +287,28 @@ function CustomerDetailPanel({
 
   const detail = detailQuery.data;
 
+  if (isEditing) {
+    return (
+      <Panel title={`Editar ${detail.name}`}>
+        <CustomerForm
+          initial={{ externalRef: detail.externalRef, name: detail.name, notes: detail.notes }}
+          isPending={updateMutation.isPending}
+          onCancel={() => setIsEditing(false)}
+          onSubmit={(input) => updateMutation.mutate(input)}
+          submitLabel="Salvar alterações"
+        />
+        {updateMutation.isError ? (
+          <p className="mt-2 text-sm text-[#B42318]">Não foi possível salvar as alterações.</p>
+        ) : null}
+      </Panel>
+    );
+  }
+
   return (
-    <Panel title={detail.name}>
+    <Panel
+      headerAction={<Button onClick={() => setIsEditing(true)} variant="secondary">Editar</Button>}
+      title={detail.name}
+    >
       <div className="space-y-5">
         {detail.notes ? <p className="text-sm text-[#66736D]">{detail.notes}</p> : null}
         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -318,10 +450,21 @@ function ListState({
   return children(query.data);
 }
 
-function Panel({ children, title }: { children: React.ReactNode; title: string }): React.ReactNode {
+function Panel({
+  children,
+  headerAction,
+  title
+}: {
+  children: React.ReactNode;
+  headerAction?: React.ReactNode;
+  title: string;
+}): React.ReactNode {
   return (
     <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
-      <h2 className="text-sm font-semibold">{title}</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        {headerAction}
+      </div>
       <div className="mt-4">{children}</div>
     </section>
   );
@@ -384,6 +527,32 @@ async function fetchCustomerDetail(id: string): Promise<CustomerDetail> {
 
   if (!response.ok) {
     throw new Error("Falha ao carregar detalhe do cliente.");
+  }
+
+  return response.json() as Promise<CustomerDetail>;
+}
+
+async function createCustomer(input: CustomerWritePayload): Promise<CustomerDetail> {
+  const response = await apiFetch("/customers", {
+    body: JSON.stringify(input),
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    throw new Error("Falha ao criar cliente.");
+  }
+
+  return response.json() as Promise<CustomerDetail>;
+}
+
+async function updateCustomer(id: string, input: CustomerWritePayload): Promise<CustomerDetail> {
+  const response = await apiFetch(`/customers/${id}`, {
+    body: JSON.stringify(input),
+    method: "PATCH"
+  });
+
+  if (!response.ok) {
+    throw new Error("Falha ao atualizar cliente.");
   }
 
   return response.json() as Promise<CustomerDetail>;
