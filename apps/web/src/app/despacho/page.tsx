@@ -11,10 +11,12 @@ import { AppShell, Button } from "@fieldops/ui";
 import { DndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { apiFetch } from "../../lib/api-client";
 import { MapView, type MapMarker } from "../../lib/map-view";
+import { RealtimeStatusBadge } from "../../lib/realtime-status-badge";
+import { useRealtimeStream } from "../../lib/use-realtime-stream";
 import { useRequireAuth } from "../../lib/use-require-auth";
 
 export default function DispatchPage(): React.ReactNode {
@@ -24,11 +26,20 @@ export default function DispatchPage(): React.ReactNode {
   const [date, setDate] = useState(today);
   const [feedback, setFeedback] = useState<string | undefined>(undefined);
   const queryClient = useQueryClient();
+  const { events, status } = useRealtimeStream(session?.organizationId ?? "", "work_order:read");
   const boardQuery = useQuery({
     enabled: Boolean(session),
     queryFn: () => fetchDispatchBoard(date),
     queryKey: ["dispatch-board", date]
   });
+
+  useEffect(() => {
+    if (events.length === 0) {
+      return;
+    }
+
+    void queryClient.invalidateQueries({ queryKey: ["dispatch-board"] });
+  }, [events, queryClient]);
   const candidatesQuery = useQuery({
     enabled: Boolean(activeWorkOrderId) && Boolean(session),
     queryFn: () => fetchDispatchCandidates(activeWorkOrderId ?? ""),
@@ -72,6 +83,7 @@ export default function DispatchPage(): React.ReactNode {
       userLabel={session.userName}
       headerAction={
         <div className="flex items-center gap-2">
+          <RealtimeStatusBadge status={status} />
           <input
             aria-label="Selecionar data do despacho"
             className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"

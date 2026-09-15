@@ -50,10 +50,10 @@ export class RealtimeController {
 
   @Post("technician-location")
   @RequirePermissions("work_order:update")
-  reportTechnicianLocation(
+  async reportTechnicianLocation(
     @CurrentActor() actor: AuthenticatedActor | undefined,
     @Body() body: unknown
-  ): { published: true } {
+  ): Promise<{ published: true }> {
     if (!actor) {
       throw new ForbiddenException("Ator autenticado não informado.");
     }
@@ -62,6 +62,13 @@ export class RealtimeController {
     if (!parsedBody.success) {
       throw new BadRequestException("Dados inválidos para localização do técnico.");
     }
+
+    await this.realtimeService.recordTechnicianLocation({
+      latitude: parsedBody.data.latitude,
+      longitude: parsedBody.data.longitude,
+      organizationId: actor.organizationId,
+      technicianUserId: actor.id
+    });
 
     this.realtimeService.publish(actor.organizationId, {
       data: {

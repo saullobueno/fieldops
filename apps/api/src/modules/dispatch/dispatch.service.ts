@@ -29,6 +29,8 @@ interface TechnicianRow {
   readonly territory_id: string | null;
   readonly home_latitude: string | null;
   readonly home_longitude: string | null;
+  readonly current_latitude: string | null;
+  readonly current_longitude: string | null;
 }
 
 interface AssignmentRow {
@@ -128,7 +130,7 @@ export class DispatchService {
   private async getBoardFromDatabase(organizationId: string, date: string): Promise<DispatchBoard> {
     const [technicians, assignments, unassigned] = await Promise.all([
       this.postgresPool!.query<TechnicianRow>(
-        `select tp.id, u.name, tp.status, tp.skills, tp.territory_id, tp.home_latitude, tp.home_longitude
+        `select tp.id, u.name, tp.status, tp.skills, tp.territory_id, tp.home_latitude, tp.home_longitude, tp.current_latitude, tp.current_longitude
          from technician_profiles tp
          join users u on u.id = tp.user_id
          where tp.organization_id = $1
@@ -186,7 +188,7 @@ export class DispatchService {
   private async getCandidatesFromDatabase(workOrderId: string, organizationId: string): Promise<readonly DispatchCandidate[]> {
     const scope = await this.loadWorkOrderScope(workOrderId, organizationId);
     const technicians = await this.postgresPool!.query<TechnicianRow>(
-      `select tp.id, u.name, tp.status, tp.skills, tp.territory_id, tp.home_latitude, tp.home_longitude
+      `select tp.id, u.name, tp.status, tp.skills, tp.territory_id, tp.home_latitude, tp.home_longitude, tp.current_latitude, tp.current_longitude
        from technician_profiles tp
        join users u on u.id = tp.user_id
        where tp.organization_id = $1
@@ -218,7 +220,7 @@ export class DispatchService {
     ]);
 
     const estimatedTravelMinutes = await this.mapsService.estimateTravelMinutes(
-      toCoordinates(technician.home_latitude, technician.home_longitude),
+      toCoordinates(technician.current_latitude ?? technician.home_latitude, technician.current_longitude ?? technician.home_longitude),
       toCoordinates(scope.latitude, scope.longitude)
     );
 
@@ -446,11 +448,14 @@ function toAssignmentCard(row: AssignmentRow): DispatchAssignmentCard {
 }
 
 function toTechnicianLane(row: TechnicianRow, assignments: readonly DispatchAssignmentCard[]): DispatchTechnicianLane {
+  const latitude = row.current_latitude ?? row.home_latitude;
+  const longitude = row.current_longitude ?? row.home_longitude;
+
   return {
     assignments,
     id: row.id,
-    latitude: row.home_latitude ? Number(row.home_latitude) : null,
-    longitude: row.home_longitude ? Number(row.home_longitude) : null,
+    latitude: latitude ? Number(latitude) : null,
+    longitude: longitude ? Number(longitude) : null,
     name: row.name,
     skills: row.skills,
     status: row.status,

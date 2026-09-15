@@ -19,7 +19,8 @@ import { useEffect } from "react";
 
 import { apiFetch } from "../lib/api-client";
 import { MapView, type MapMarker } from "../lib/map-view";
-import { useRealtimeStream, type RealtimeConnectionStatus } from "../lib/use-realtime-stream";
+import { RealtimeStatusBadge } from "../lib/realtime-status-badge";
+import { useRealtimeStream } from "../lib/use-realtime-stream";
 import { useRequireAuth } from "../lib/use-require-auth";
 
 const widgetLimits: Record<DashboardWidgetKey, number> = {
@@ -82,28 +83,6 @@ export default function HomePage(): React.ReactNode {
         </section>
       </div>
     </AppShell>
-  );
-}
-
-function RealtimeStatusBadge({ status }: { status: RealtimeConnectionStatus }): React.ReactNode {
-  const labels: Record<RealtimeConnectionStatus, string> = {
-    connected: "Ao vivo",
-    connecting: "Conectando...",
-    reconnecting: "Reconectando...",
-    stale: "Desatualizado"
-  };
-
-  const toneClass: Record<RealtimeConnectionStatus, string> = {
-    connected: "bg-[#E4F3EC] text-[#0E6F4F]",
-    connecting: "bg-[#F4F6F5] text-[#66736D]",
-    reconnecting: "bg-[#FFF4D6] text-[#8A4B00]",
-    stale: "bg-[#FDE8E4] text-[#B42318]"
-  };
-
-  return (
-    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${toneClass[status]}`}>
-      {labels[status]}
-    </span>
   );
 }
 

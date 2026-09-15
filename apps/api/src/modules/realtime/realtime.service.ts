@@ -1,17 +1,44 @@
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import type { RealtimeEnvelope, RealtimeEvent } from "@fieldops/types";
 import type { MessageEvent } from "@nestjs/common";
 import { Observable } from "rxjs";
+import type pg from "pg";
+
+import { POSTGRES_POOL } from "../infrastructure/infrastructure.module.js";
+
+export interface TechnicianLocationUpdate {
+  readonly organizationId: string;
+  readonly technicianUserId: string;
+  readonly latitude: number;
+  readonly longitude: number;
+}
 
 @Injectable()
 export class RealtimeService {
   private readonly emitter = new EventEmitter();
 
-  constructor() {
+  constructor(@Optional() @Inject(POSTGRES_POOL) private readonly postgresPool?: pg.Pool) {
     this.emitter.setMaxListeners(0);
+  }
+
+  async recordTechnicianLocation(update: TechnicianLocationUpdate): Promise<void> {
+    if (!this.postgresPool) {
+      return;
+    }
+
+    try {
+      await this.postgresPool.query(
+        `update technician_profiles
+         set current_latitude = $1, current_longitude = $2, location_updated_at = now()
+         where user_id = $3 and organization_id = $4`,
+        [update.latitude, update.longitude, update.technicianUserId, update.organizationId]
+      );
+    } catch {
+      // Modo demo ou banco indisponível: a localização segue publicada só via SSE.
+    }
   }
 
   publish(organizationId: string, event: RealtimeEvent): void {

@@ -9,9 +9,11 @@ import type {
 } from "@fieldops/types";
 import { AppShell, Button } from "@fieldops/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { apiBaseUrl, apiFetch } from "../../lib/api-client";
+import { RealtimeStatusBadge } from "../../lib/realtime-status-badge";
+import { useRealtimeStream } from "../../lib/use-realtime-stream";
 import { useRequireAuth } from "../../lib/use-require-auth";
 
 const statusOptions = [
@@ -28,15 +30,27 @@ const pageSize = 20;
 
 export default function WorkOrdersPage(): React.ReactNode {
   const { logout, session } = useRequireAuth();
+  const queryClient = useQueryClient();
   const [limit, setLimit] = useState(pageSize);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState("00000000-0000-4000-8000-000000000901");
+  const { events, status: realtimeStatus } = useRealtimeStream(session?.organizationId ?? "", "work_order:read");
   const listQuery = useQuery({
     enabled: Boolean(session),
     queryFn: () => fetchWorkOrders({ limit, search, status }),
     queryKey: ["work-orders", limit, search, status]
   });
+
+  useEffect(() => {
+    if (events.length === 0) {
+      return;
+    }
+
+    void queryClient.invalidateQueries({ queryKey: ["work-orders"] });
+    void queryClient.invalidateQueries({ queryKey: ["work-order-detail"] });
+    void queryClient.invalidateQueries({ queryKey: ["work-order-audit"] });
+  }, [events, queryClient]);
 
   const selectedFromList = useMemo(
     () => listQuery.data?.items.find((item) => item.id === selectedId),
@@ -50,7 +64,12 @@ export default function WorkOrdersPage(): React.ReactNode {
   return (
     <AppShell
       activeHref="/ordens"
-      headerAction={<Button variant="primary">Nova ordem</Button>}
+      headerAction={
+        <div className="flex items-center gap-3">
+          <RealtimeStatusBadge status={realtimeStatus} />
+          <Button variant="primary">Nova ordem</Button>
+        </div>
+      }
       headerEyebrow="Operação"
       headerTitle="Ordens de serviço"
       onLogout={logout}
@@ -855,3 +874,4 @@ async function addWorkOrderNote(id: string, body: string): Promise<WorkOrderDeta
 
   return response.json() as Promise<WorkOrderDetail>;
 }
+

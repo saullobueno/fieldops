@@ -15,6 +15,13 @@
       "when": 1789482226713,
       "tag": "0001_safe_true_believers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789505986769,
+      "tag": "0002_tan_william_stryker",
+      "breakpoints": true
     }
   ]
 }

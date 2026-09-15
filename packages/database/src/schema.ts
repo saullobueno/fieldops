@@ -177,6 +177,9 @@ export const technicianProfiles = pgTable("technician_profiles", {
   skills: jsonb("skills").$type<string[]>().default([]).notNull(),
   homeLatitude: numeric("home_latitude", { precision: 9, scale: 6 }),
   homeLongitude: numeric("home_longitude", { precision: 9, scale: 6 }),
+  currentLatitude: numeric("current_latitude", { precision: 9, scale: 6 }),
+  currentLongitude: numeric("current_longitude", { precision: 9, scale: 6 }),
+  locationUpdatedAt: timestamp("location_updated_at", { withTimezone: true }),
   ...timestamps
 }, (table) => [
   uniqueIndex("technician_profiles_user_idx").on(table.userId),
