@@ -1,0 +1,16 @@
+node_modules
+.next
+dist
+coverage
+.turbo
+.env
+.env.local
+*.log
+*.tsbuildinfo
+.logs/
+.claude/
+
+# Anexos gravados localmente em runtime (uploads reais via /work-orders/:id/attachments);
+# mantém apenas o arquivo demo referenciado pelo seed determinístico.
+storage/*
+!storage/demo

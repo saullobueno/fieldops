@@ -1,0 +1,43 @@
+{
+  "name": "@fieldops/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@fieldops/ai": "workspace:*",
+    "@fieldops/auth": "workspace:*",
+    "@fieldops/config": "workspace:*",
+    "@fieldops/database": "workspace:*",
+    "@fieldops/domain": "workspace:*",
+    "@fieldops/integrations": "workspace:*",
+    "@fieldops/types": "workspace:*",
+    "@nestjs/common": "12.0.1",
+    "@nestjs/core": "12.0.1",
+    "@nestjs/platform-express": "12.0.1",
+    "@opentelemetry/api": "1.9.1",
+    "@sentry/node": "10.74.0",
+    "bullmq": "6.0.0",
+    "groq-sdk": "^1.6.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "zod": "4.6.1"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "12.0.1",
+    "@types/express": "5.0.6",
+    "@types/multer": "^2.0.0",
+    "@types/node": "22.20.2",
+    "@types/pg": "8.23.1",
+    "@types/supertest": "7.2.1",
+    "supertest": "7.2.2",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3",
+    "vitest": "5.0.0"
+  }
+}
