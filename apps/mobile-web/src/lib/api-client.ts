@@ -1,4 +1,5 @@
 const TOKEN_STORAGE_KEY = "fieldops_token";
+const SESSION_CHANGED_EVENT = "fieldops-session-changed";
 
 export interface StoredSession {
   readonly token: string;
@@ -7,30 +8,62 @@ export interface StoredSession {
   readonly userName: string;
 }
 
+// `useRequireAuth` lê esta função via `useSyncExternalStore`, que exige que o
+// snapshot retorne a MESMA referência entre chamadas enquanto os dados não
+// mudam — sem esse cache, `JSON.parse` cria um objeto novo a cada leitura e
+// o React entra em loop infinito de re-render ("Maximum update depth exceeded").
+let cachedRaw: string | null = null;
+let cachedSession: StoredSession | undefined;
+
 export function getStoredSession(): StoredSession | undefined {
   if (typeof window === "undefined") {
     return undefined;
   }
 
   const raw = window.localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (raw === cachedRaw) {
+    return cachedSession;
+  }
+
+  cachedRaw = raw;
+
   if (!raw) {
-    return undefined;
+    cachedSession = undefined;
+    return cachedSession;
   }
 
   try {
-    return JSON.parse(raw) as StoredSession;
+    cachedSession = JSON.parse(raw) as StoredSession;
   } catch {
     window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-    return undefined;
+    cachedSession = undefined;
   }
+
+  return cachedSession;
 }
 
 export function storeSession(session: StoredSession): void {
-  window.localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(session));
+  cachedSession = session;
+  cachedRaw = JSON.stringify(session);
+  window.localStorage.setItem(TOKEN_STORAGE_KEY, cachedRaw);
+  window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
 }
 
 export function clearSession(): void {
+  cachedRaw = null;
+  cachedSession = undefined;
   window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+  window.dispatchEvent(new Event(SESSION_CHANGED_EVENT));
+}
+
+export function subscribeToSessionChanges(callback: () => void): () => void {
+  window.addEventListener("storage", callback);
+  window.addEventListener(SESSION_CHANGED_EVENT, callback);
+
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener(SESSION_CHANGED_EVENT, callback);
+  };
 }
 
 export function apiBaseUrl(): string {

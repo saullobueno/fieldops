@@ -231,9 +231,15 @@ export interface CustomerSite {
   readonly id: string;
   readonly name: string;
   readonly addressLine1: string;
+  readonly addressLine2: string | null;
   readonly city: string;
   readonly state: string;
+  readonly postalCode: string;
+  readonly country: string;
   readonly territoryId: string | null;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+  readonly accessInstructions: string | null;
 }
 
 export interface CustomerContact {
@@ -256,6 +262,7 @@ export interface CustomerAssetSummary {
   readonly name: string;
   readonly model: string | null;
   readonly serialNumber: string | null;
+  readonly warrantyExpiresOn: string | null;
   readonly siteId: string;
   readonly siteName: string;
 }
@@ -329,6 +336,8 @@ export interface DispatchTechnicianLane {
   readonly status: string;
   readonly skills: readonly string[];
   readonly territoryId: string | null;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
   readonly assignments: readonly DispatchAssignmentCard[];
 }
 

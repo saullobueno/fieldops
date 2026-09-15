@@ -24,6 +24,65 @@ export interface CustomerUpdateInput extends CustomerWriteInput {
   readonly id: string;
 }
 
+export interface SiteWriteInput {
+  readonly organizationId: string;
+  readonly customerId: string;
+  readonly name: string;
+  readonly addressLine1: string;
+  readonly addressLine2: string | null;
+  readonly city: string;
+  readonly state: string;
+  readonly postalCode: string;
+  readonly country: string;
+  readonly territoryId: string | null;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+  readonly accessInstructions: string | null;
+}
+
+export interface SiteUpdateInput extends SiteWriteInput {
+  readonly id: string;
+}
+
+export interface ContactWriteInput {
+  readonly organizationId: string;
+  readonly customerId: string;
+  readonly name: string;
+  readonly email: string | null;
+  readonly phone: string | null;
+  readonly title: string | null;
+}
+
+export interface ContactUpdateInput extends ContactWriteInput {
+  readonly id: string;
+}
+
+export interface ContractWriteInput {
+  readonly organizationId: string;
+  readonly customerId: string;
+  readonly name: string;
+  readonly startsOn: string;
+  readonly endsOn: string | null;
+}
+
+export interface ContractUpdateInput extends ContractWriteInput {
+  readonly id: string;
+}
+
+export interface AssetWriteInput {
+  readonly organizationId: string;
+  readonly customerId: string;
+  readonly siteId: string;
+  readonly name: string;
+  readonly model: string | null;
+  readonly serialNumber: string | null;
+  readonly warrantyExpiresOn: string | null;
+}
+
+export interface AssetUpdateInput extends AssetWriteInput {
+  readonly id: string;
+}
+
 interface CustomerSummaryRow {
   readonly id: string;
   readonly organization_id: string;
@@ -45,9 +104,15 @@ interface SiteRow {
   readonly id: string;
   readonly name: string;
   readonly address_line_1: string;
+  readonly address_line_2: string | null;
   readonly city: string;
   readonly state: string;
+  readonly postal_code: string;
+  readonly country: string;
   readonly territory_id: string | null;
+  readonly latitude: string | null;
+  readonly longitude: string | null;
+  readonly access_instructions: string | null;
 }
 
 interface ContactRow {
@@ -70,6 +135,7 @@ interface AssetRow {
   readonly name: string;
   readonly model: string | null;
   readonly serial_number: string | null;
+  readonly warranty_expires_on: Date | string | null;
   readonly site_id: string;
   readonly site_name: string;
 }
@@ -138,6 +204,142 @@ export class CustomersService {
     }
   }
 
+  async createSite(input: SiteWriteInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      createSiteInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+
+    try {
+      await this.createSiteInDatabase(input);
+      return await this.getFromDatabase(input.customerId, input.organizationId);
+    } catch {
+      createSiteInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+  }
+
+  async updateSite(input: SiteUpdateInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      updateSiteInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+
+    try {
+      await this.updateSiteInDatabase(input);
+      return await this.getFromDatabase(input.customerId, input.organizationId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      updateSiteInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+  }
+
+  async createContact(input: ContactWriteInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      createContactInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+
+    try {
+      await this.createContactInDatabase(input);
+      return await this.getFromDatabase(input.customerId, input.organizationId);
+    } catch {
+      createContactInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+  }
+
+  async updateContact(input: ContactUpdateInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      updateContactInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+
+    try {
+      await this.updateContactInDatabase(input);
+      return await this.getFromDatabase(input.customerId, input.organizationId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      updateContactInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+  }
+
+  async createContract(input: ContractWriteInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      createContractInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+
+    try {
+      await this.createContractInDatabase(input);
+      return await this.getFromDatabase(input.customerId, input.organizationId);
+    } catch {
+      createContractInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+  }
+
+  async updateContract(input: ContractUpdateInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      updateContractInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+
+    try {
+      await this.updateContractInDatabase(input);
+      return await this.getFromDatabase(input.customerId, input.organizationId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      updateContractInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+  }
+
+  async createAsset(input: AssetWriteInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      createAssetInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+
+    try {
+      await this.createAssetInDatabase(input);
+      return await this.getFromDatabase(input.customerId, input.organizationId);
+    } catch {
+      createAssetInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+  }
+
+  async updateAsset(input: AssetUpdateInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      updateAssetInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+
+    try {
+      await this.updateAssetInDatabase(input);
+      return await this.getFromDatabase(input.customerId, input.organizationId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      updateAssetInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+  }
+
   private async createInDatabase(input: CustomerWriteInput): Promise<string> {
     const result = await this.postgresPool!.query<{ id: string }>(
       `insert into customers (organization_id, name, external_ref, notes)
@@ -159,6 +361,169 @@ export class CustomersService {
 
     if (result.rowCount === 0) {
       throw new NotFoundException("Cliente não encontrado.");
+    }
+  }
+
+  private async createSiteInDatabase(input: SiteWriteInput): Promise<void> {
+    await this.postgresPool!.query(
+      `insert into sites (
+         organization_id, customer_id, territory_id, name, address_line_1, address_line_2,
+         city, state, postal_code, country, latitude, longitude, access_instructions
+       )
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+      [
+        input.organizationId,
+        input.customerId,
+        input.territoryId,
+        input.name,
+        input.addressLine1,
+        input.addressLine2,
+        input.city,
+        input.state,
+        input.postalCode,
+        input.country,
+        input.latitude,
+        input.longitude,
+        input.accessInstructions
+      ]
+    );
+  }
+
+  private async updateSiteInDatabase(input: SiteUpdateInput): Promise<void> {
+    const result = await this.postgresPool!.query(
+      `update sites
+       set territory_id = $4,
+           name = $5,
+           address_line_1 = $6,
+           address_line_2 = $7,
+           city = $8,
+           state = $9,
+           postal_code = $10,
+           country = $11,
+           latitude = $12,
+           longitude = $13,
+           access_instructions = $14,
+           updated_at = now()
+       where id = $1 and organization_id = $2 and customer_id = $3`,
+      [
+        input.id,
+        input.organizationId,
+        input.customerId,
+        input.territoryId,
+        input.name,
+        input.addressLine1,
+        input.addressLine2,
+        input.city,
+        input.state,
+        input.postalCode,
+        input.country,
+        input.latitude,
+        input.longitude,
+        input.accessInstructions
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException("Local não encontrado.");
+    }
+  }
+
+  private async createContactInDatabase(input: ContactWriteInput): Promise<void> {
+    await this.postgresPool!.query(
+      `insert into contacts (organization_id, customer_id, name, email, phone, title)
+       values ($1, $2, $3, $4, $5, $6)`,
+      [input.organizationId, input.customerId, input.name, input.email, input.phone, input.title]
+    );
+  }
+
+  private async updateContactInDatabase(input: ContactUpdateInput): Promise<void> {
+    const result = await this.postgresPool!.query(
+      `update contacts
+       set name = $4, email = $5, phone = $6, title = $7, updated_at = now()
+       where id = $1 and organization_id = $2 and customer_id = $3`,
+      [input.id, input.organizationId, input.customerId, input.name, input.email, input.phone, input.title]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException("Contato não encontrado.");
+    }
+  }
+
+  private async createContractInDatabase(input: ContractWriteInput): Promise<void> {
+    await this.postgresPool!.query(
+      `insert into contracts (organization_id, customer_id, name, starts_on, ends_on)
+       values ($1, $2, $3, $4, $5)`,
+      [input.organizationId, input.customerId, input.name, input.startsOn, input.endsOn]
+    );
+  }
+
+  private async updateContractInDatabase(input: ContractUpdateInput): Promise<void> {
+    const result = await this.postgresPool!.query(
+      `update contracts
+       set name = $4, starts_on = $5, ends_on = $6, updated_at = now()
+       where id = $1 and organization_id = $2 and customer_id = $3`,
+      [input.id, input.organizationId, input.customerId, input.name, input.startsOn, input.endsOn]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException("Contrato não encontrado.");
+    }
+  }
+
+  private async createAssetInDatabase(input: AssetWriteInput): Promise<void> {
+    const result = await this.postgresPool!.query(
+      `insert into assets (
+         organization_id, customer_id, site_id, name, serial_number, model, warranty_expires_on
+       )
+       select $1, $2, s.id, $4, $5, $6, $7
+       from sites s
+       where s.id = $3 and s.organization_id = $1 and s.customer_id = $2`,
+      [
+        input.organizationId,
+        input.customerId,
+        input.siteId,
+        input.name,
+        input.serialNumber,
+        input.model,
+        input.warrantyExpiresOn
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException("Local do ativo não encontrado.");
+    }
+  }
+
+  private async updateAssetInDatabase(input: AssetUpdateInput): Promise<void> {
+    const result = await this.postgresPool!.query(
+      `update assets
+       set site_id = $4,
+           name = $5,
+           serial_number = $6,
+           model = $7,
+           warranty_expires_on = $8,
+           updated_at = now()
+       where id = $1
+         and organization_id = $2
+         and customer_id = $3
+         and exists (
+           select 1 from sites s
+           where s.id = $4 and s.organization_id = $2 and s.customer_id = $3
+         )`,
+      [
+        input.id,
+        input.organizationId,
+        input.customerId,
+        input.siteId,
+        input.name,
+        input.serialNumber,
+        input.model,
+        input.warrantyExpiresOn
+      ]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException("Ativo não encontrado.");
     }
   }
 
@@ -219,7 +584,9 @@ export class CustomersService {
 
     const [sites, contacts, contracts, assets, openWorkOrders] = await Promise.all([
       this.postgresPool!.query<SiteRow>(
-        `select id, name, address_line_1, city, state, territory_id
+        `select
+           id, name, address_line_1, address_line_2, city, state, postal_code, country,
+           territory_id, latitude::text, longitude::text, access_instructions
          from sites
          where customer_id = $1 and organization_id = $2
          order by name asc`,
@@ -240,7 +607,7 @@ export class CustomersService {
         [id, organizationId]
       ),
       this.postgresPool!.query<AssetRow>(
-        `select a.id, a.name, a.model, a.serial_number, a.site_id, s.name as site_name
+        `select a.id, a.name, a.model, a.serial_number, a.warranty_expires_on, a.site_id, s.name as site_name
          from assets a
          join sites s on s.id = a.site_id
          where a.customer_id = $1 and a.organization_id = $2
@@ -284,10 +651,16 @@ function toSummary(row: CustomerSummaryRow): CustomerSummary {
 
 function toSite(row: SiteRow) {
   return {
+    accessInstructions: row.access_instructions,
     addressLine1: row.address_line_1,
+    addressLine2: row.address_line_2,
     city: row.city,
+    country: row.country,
     id: row.id,
+    latitude: row.latitude ? Number(row.latitude) : null,
+    longitude: row.longitude ? Number(row.longitude) : null,
     name: row.name,
+    postalCode: row.postal_code,
     state: row.state,
     territoryId: row.territory_id
   };
@@ -319,7 +692,8 @@ function toAssetSummary(row: AssetRow) {
     name: row.name,
     serialNumber: row.serial_number,
     siteId: row.site_id,
-    siteName: row.site_name
+    siteName: row.site_name,
+    warrantyExpiresOn: row.warranty_expires_on ? toIso(row.warranty_expires_on) : null
   };
 }
 
@@ -338,7 +712,8 @@ const customers: CustomerDetail[] = [
         name: "Bomba pressurizadora A",
         serialNumber: "BMB-ACME-001",
         siteId: "00000000-0000-4000-8000-000000000401",
-        siteName: "Unidade Centro"
+        siteName: "Unidade Centro",
+        warrantyExpiresOn: null
       }
     ],
     contacts: [
@@ -361,10 +736,16 @@ const customers: CustomerDetail[] = [
     organizationId,
     sites: [
       {
+        accessInstructions: "Acesso pela portaria técnica.",
         addressLine1: "Rua Boa Vista, 120",
+        addressLine2: null,
         city: "São Paulo",
+        country: "BR",
         id: "00000000-0000-4000-8000-000000000401",
+        latitude: -23.5452,
+        longitude: -46.6339,
         name: "Unidade Centro",
+        postalCode: "01014-000",
         state: "SP",
         territoryId: "00000000-0000-4000-8000-000000000801"
       }
@@ -391,10 +772,16 @@ const customers: CustomerDetail[] = [
     organizationId,
     sites: [
       {
+        accessInstructions: null,
         addressLine1: "Rua dos Pinheiros, 950",
+        addressLine2: null,
         city: "São Paulo",
+        country: "BR",
         id: "00000000-0000-4000-8000-000000000402",
+        latitude: -23.5666,
+        longitude: -46.6934,
         name: "Loja Pinheiros",
+        postalCode: "05422-001",
         state: "SP",
         territoryId: "00000000-0000-4000-8000-000000000802"
       }
@@ -469,6 +856,191 @@ function updateInMemory(input: CustomerUpdateInput): CustomerDetail {
 
   customers[index] = updated;
   return updated;
+}
+
+function createSiteInMemory(input: SiteWriteInput): void {
+  const customer = getFromMemory(input.customerId, input.organizationId);
+  const created = {
+    accessInstructions: input.accessInstructions,
+    addressLine1: input.addressLine1,
+    addressLine2: input.addressLine2,
+    city: input.city,
+    country: input.country,
+    id: randomUUID(),
+    latitude: input.latitude,
+    longitude: input.longitude,
+    name: input.name,
+    postalCode: input.postalCode,
+    state: input.state,
+    territoryId: input.territoryId
+  };
+
+  replaceCustomer({
+    ...customer,
+    sites: [...customer.sites, created],
+    sitesCount: customer.sitesCount + 1
+  });
+}
+
+function updateSiteInMemory(input: SiteUpdateInput): void {
+  const customer = getFromMemory(input.customerId, input.organizationId);
+  const siteIndex = customer.sites.findIndex((site) => site.id === input.id);
+
+  if (siteIndex === -1) {
+    throw new NotFoundException("Local não encontrado.");
+  }
+
+  const sites = [...customer.sites];
+  sites[siteIndex] = {
+    accessInstructions: input.accessInstructions,
+    addressLine1: input.addressLine1,
+    addressLine2: input.addressLine2,
+    city: input.city,
+    country: input.country,
+    id: input.id,
+    latitude: input.latitude,
+    longitude: input.longitude,
+    name: input.name,
+    postalCode: input.postalCode,
+    state: input.state,
+    territoryId: input.territoryId
+  };
+
+  const updatedAssets = customer.assets.map((asset) =>
+    asset.siteId === input.id ? { ...asset, siteName: input.name } : asset
+  );
+
+  replaceCustomer({ ...customer, assets: updatedAssets, sites });
+}
+
+function createContactInMemory(input: ContactWriteInput): void {
+  const customer = getFromMemory(input.customerId, input.organizationId);
+  replaceCustomer({
+    ...customer,
+    contacts: [
+      ...customer.contacts,
+      {
+        email: input.email,
+        id: randomUUID(),
+        name: input.name,
+        phone: input.phone,
+        title: input.title
+      }
+    ]
+  });
+}
+
+function updateContactInMemory(input: ContactUpdateInput): void {
+  const customer = getFromMemory(input.customerId, input.organizationId);
+  const contactIndex = customer.contacts.findIndex((contact) => contact.id === input.id);
+
+  if (contactIndex === -1) {
+    throw new NotFoundException("Contato não encontrado.");
+  }
+
+  const contacts = [...customer.contacts];
+  contacts[contactIndex] = {
+    email: input.email,
+    id: input.id,
+    name: input.name,
+    phone: input.phone,
+    title: input.title
+  };
+
+  replaceCustomer({ ...customer, contacts });
+}
+
+function createContractInMemory(input: ContractWriteInput): void {
+  const customer = getFromMemory(input.customerId, input.organizationId);
+  replaceCustomer({
+    ...customer,
+    contracts: [
+      ...customer.contracts,
+      {
+        endsOn: input.endsOn,
+        id: randomUUID(),
+        name: input.name,
+        startsOn: input.startsOn
+      }
+    ]
+  });
+}
+
+function updateContractInMemory(input: ContractUpdateInput): void {
+  const customer = getFromMemory(input.customerId, input.organizationId);
+  const contractIndex = customer.contracts.findIndex((contract) => contract.id === input.id);
+
+  if (contractIndex === -1) {
+    throw new NotFoundException("Contrato não encontrado.");
+  }
+
+  const contracts = [...customer.contracts];
+  contracts[contractIndex] = {
+    endsOn: input.endsOn,
+    id: input.id,
+    name: input.name,
+    startsOn: input.startsOn
+  };
+
+  replaceCustomer({ ...customer, contracts });
+}
+
+function createAssetInMemory(input: AssetWriteInput): void {
+  const customer = getFromMemory(input.customerId, input.organizationId);
+  const site = customer.sites.find((candidate) => candidate.id === input.siteId);
+
+  if (!site) {
+    throw new NotFoundException("Local do ativo não encontrado.");
+  }
+
+  replaceCustomer({
+    ...customer,
+    assets: [
+      ...customer.assets,
+      {
+        id: randomUUID(),
+        model: input.model,
+        name: input.name,
+        serialNumber: input.serialNumber,
+        siteId: input.siteId,
+        siteName: site.name,
+        warrantyExpiresOn: input.warrantyExpiresOn
+      }
+    ]
+  });
+}
+
+function updateAssetInMemory(input: AssetUpdateInput): void {
+  const customer = getFromMemory(input.customerId, input.organizationId);
+  const assetIndex = customer.assets.findIndex((asset) => asset.id === input.id);
+  const site = customer.sites.find((candidate) => candidate.id === input.siteId);
+
+  if (assetIndex === -1 || !site) {
+    throw new NotFoundException("Ativo não encontrado.");
+  }
+
+  const assets = [...customer.assets];
+  assets[assetIndex] = {
+    id: input.id,
+    model: input.model,
+    name: input.name,
+    serialNumber: input.serialNumber,
+    siteId: input.siteId,
+    siteName: site.name,
+    warrantyExpiresOn: input.warrantyExpiresOn
+  };
+
+  replaceCustomer({ ...customer, assets });
+}
+
+function replaceCustomer(updated: CustomerDetail): void {
+  const index = customers.findIndex(
+    (candidate) => candidate.id === updated.id && candidate.organizationId === updated.organizationId
+  );
+
+  if (index !== -1) {
+    customers[index] = updated;
+  }
 }
 
 function toSummaryFromDetail(detail: CustomerDetail): CustomerSummary {

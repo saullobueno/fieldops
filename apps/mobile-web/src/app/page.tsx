@@ -1,17 +1,19 @@
 "use client";
 
-import type { WorkOrderSummary } from "@fieldops/types";
+import type { WorkOrderAttachment, WorkOrderChecklistItem, WorkOrderDetail, WorkOrderSummary } from "@fieldops/types";
 import { Button } from "@fieldops/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { apiFetch } from "../lib/api-client";
 import {
   cacheWorkOrders,
   enqueueCommand,
+  getCachedWorkOrderDetail,
   getCachedWorkOrders,
   getQueuedCommands,
   putCachedWorkOrder,
+  putCachedWorkOrderDetail,
   removeCommand,
   type QueuedCommand
 } from "../lib/offline-db";
@@ -91,7 +93,7 @@ export default function TechnicianHomePage(): React.ReactNode {
     );
     await putCachedWorkOrder(updated);
 
-    await enqueueCommand({
+    const command: QueuedCommand = {
       createdAt: new Date().toISOString(),
       idempotencyKey: crypto.randomUUID(),
       label: `${item.number}: status para ${status}`,
@@ -99,7 +101,9 @@ export default function TechnicianHomePage(): React.ReactNode {
       status: "queued",
       type: "status_change",
       workOrderId: item.id
-    });
+    };
+    await enqueueCommand(command);
+    queryClient.setQueryData<QueuedCommand[]>(QUEUE_QUERY_KEY, (current) => [...(current ?? []), command]);
     await queryClient.invalidateQueries({ queryKey: QUEUE_QUERY_KEY });
 
     if (navigator.onLine) {
@@ -113,7 +117,7 @@ export default function TechnicianHomePage(): React.ReactNode {
       return;
     }
 
-    await enqueueCommand({
+    const command: QueuedCommand = {
       createdAt: new Date().toISOString(),
       idempotencyKey: crypto.randomUUID(),
       label: `${item.number}: nova nota`,
@@ -121,8 +125,29 @@ export default function TechnicianHomePage(): React.ReactNode {
       status: "queued",
       type: "note_add",
       workOrderId: item.id
-    });
+    };
+    await enqueueCommand(command);
+    queryClient.setQueryData<QueuedCommand[]>(QUEUE_QUERY_KEY, (current) => [...(current ?? []), command]);
     setNoteDrafts((current) => ({ ...current, [item.id]: "" }));
+    await queryClient.invalidateQueries({ queryKey: QUEUE_QUERY_KEY });
+
+    if (navigator.onLine) {
+      syncMutation.mutate();
+    }
+  }
+
+  async function submitChecklist(item: WorkOrderSummary, answers: Record<string, unknown>): Promise<void> {
+    const command: QueuedCommand = {
+      createdAt: new Date().toISOString(),
+      idempotencyKey: crypto.randomUUID(),
+      label: `${item.number}: checklist atualizado`,
+      payload: { answers },
+      status: "queued",
+      type: "checklist_update",
+      workOrderId: item.id
+    };
+    await enqueueCommand(command);
+    queryClient.setQueryData<QueuedCommand[]>(QUEUE_QUERY_KEY, (current) => [...(current ?? []), command]);
     await queryClient.invalidateQueries({ queryKey: QUEUE_QUERY_KEY });
 
     if (navigator.onLine) {
@@ -132,6 +157,9 @@ export default function TechnicianHomePage(): React.ReactNode {
 
   async function discardCommand(idempotencyKey: string): Promise<void> {
     await removeCommand(idempotencyKey);
+    queryClient.setQueryData<QueuedCommand[]>(QUEUE_QUERY_KEY, (current) =>
+      current?.filter((command) => command.idempotencyKey !== idempotencyKey) ?? []
+    );
     await queryClient.invalidateQueries({ queryKey: QUEUE_QUERY_KEY });
   }
 
@@ -205,10 +233,12 @@ export default function TechnicianHomePage(): React.ReactNode {
         ) : (
           workOrders.map((item) => (
             <WorkOrderCard
+              isOnline={isOnline}
               item={item}
               key={item.id}
               noteDraft={noteDrafts[item.id] ?? ""}
               onAdvanceStatus={(workOrder) => void advanceStatus(workOrder)}
+              onChecklistUpdate={(workOrder, answers) => void submitChecklist(workOrder, answers)}
               onNoteChange={(value) => setNoteDrafts((current) => ({ ...current, [item.id]: value }))}
               onSubmitNote={(workOrder) => void submitNote(workOrder)}
             />
@@ -240,18 +270,78 @@ function ConflictCard({
 }
 
 function WorkOrderCard({
+  isOnline,
   item,
   noteDraft,
   onAdvanceStatus,
+  onChecklistUpdate,
   onNoteChange,
   onSubmitNote
 }: {
+  isOnline: boolean;
   item: WorkOrderSummary;
   noteDraft: string;
   onAdvanceStatus: (item: WorkOrderSummary) => void;
+  onChecklistUpdate: (item: WorkOrderSummary, answers: Record<string, unknown>) => void;
   onNoteChange: (value: string) => void;
   onSubmitNote: (item: WorkOrderSummary) => void;
 }): React.ReactNode {
+  const queryClient = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
+  const detailQueryKey = ["technician-work-order-detail", item.id];
+  const detailQuery = useQuery({
+    enabled: expanded,
+    queryFn: () => loadWorkOrderDetail(item.id),
+    queryKey: detailQueryKey
+  });
+  const uploadMutation = useMutation({
+    mutationFn: (input: { file: File; kind: "photo" | "document" }) =>
+      uploadAttachment(item.id, input.file, input.kind),
+    onSuccess: async (detail) => {
+      await putCachedWorkOrderDetail(detail);
+      queryClient.setQueryData(detailQueryKey, detail);
+    }
+  });
+  const signatureMutation = useMutation({
+    mutationFn: async (input: { file: File; signerName: string }) => {
+      const previousIds = new Set(detailQuery.data?.attachments.map((attachment) => attachment.id) ?? []);
+      const withAttachment = await uploadAttachment(item.id, input.file, "signature");
+      const uploaded =
+        withAttachment.attachments.find((attachment) => !previousIds.has(attachment.id)) ??
+        withAttachment.attachments[0];
+
+      if (!uploaded) {
+        throw new Error("Assinatura enviada sem anexo retornado.");
+      }
+
+      return addSignature(item.id, uploaded.id, input.signerName);
+    },
+    onSuccess: async (detail) => {
+      await putCachedWorkOrderDetail(detail);
+      queryClient.setQueryData(detailQueryKey, detail);
+    }
+  });
+
+  function handleChecklistSubmit(answers: Record<string, unknown>): void {
+    onChecklistUpdate(item, answers);
+    const detail = detailQuery.data;
+    if (!detail) {
+      return;
+    }
+
+    const optimistic: WorkOrderDetail = {
+      ...detail,
+      checklist: detail.checklist.map((field) => {
+        const key = field.answerKey ?? field.id;
+        const value = Object.prototype.hasOwnProperty.call(answers, key) ? answers[key] : field.value;
+
+        return { ...field, completed: !isEmptyChecklistValue(value), value: value as string | number | boolean | null };
+      })
+    };
+    queryClient.setQueryData(detailQueryKey, optimistic);
+    void putCachedWorkOrderDetail(optimistic);
+  }
+
   return (
     <article className="rounded-lg border border-zinc-200 bg-white p-4">
       <div className="flex items-center justify-between">
@@ -266,7 +356,38 @@ function WorkOrderCard({
             Avançar status
           </Button>
         ) : null}
+        <Button onClick={() => setExpanded((current) => !current)} variant="secondary">
+          {expanded ? "Fechar detalhes" : "Abrir detalhes"}
+        </Button>
       </div>
+      {expanded ? (
+        <div className="mt-4 space-y-4 border-t border-zinc-200 pt-4">
+          {detailQuery.isLoading ? (
+            <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600">Carregando detalhes...</div>
+          ) : null}
+          {detailQuery.isError ? (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              Não foi possível carregar os detalhes desta ordem.
+            </div>
+          ) : null}
+          {detailQuery.data ? (
+            <>
+              <ChecklistPanel checklist={detailQuery.data.checklist} onSubmit={handleChecklistSubmit} />
+              <AttachmentPanel
+                attachments={detailQuery.data.attachments}
+                disabled={!isOnline || uploadMutation.isPending}
+                error={uploadMutation.isError}
+                onUpload={(file, kind) => uploadMutation.mutate({ file, kind })}
+              />
+              <SignaturePanel
+                disabled={!isOnline || signatureMutation.isPending}
+                error={signatureMutation.isError}
+                onSubmit={(file, signerName) => signatureMutation.mutate({ file, signerName })}
+              />
+            </>
+          ) : null}
+        </div>
+      ) : null}
       <form
         className="mt-3 flex flex-col gap-2"
         onSubmit={(event) => {
@@ -290,6 +411,246 @@ function WorkOrderCard({
   );
 }
 
+function ChecklistPanel({
+  checklist,
+  onSubmit
+}: {
+  checklist: readonly WorkOrderChecklistItem[];
+  onSubmit: (answers: Record<string, unknown>) => void;
+}): React.ReactNode {
+  const [answers, setAnswers] = useState<Record<string, string | boolean>>(() => initialChecklistAnswers(checklist));
+
+  if (checklist.length === 0) {
+    return <MobileSection title="Checklist"><p className="text-sm text-zinc-600">Nenhum checklist vinculado.</p></MobileSection>;
+  }
+
+  return (
+    <MobileSection title="Checklist">
+      <form
+        className="space-y-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onSubmit(answers);
+        }}
+      >
+        {checklist.map((field) => {
+          const key = field.answerKey ?? field.id;
+
+          return (
+            <label className="block text-sm" key={field.id}>
+              <span className="font-medium text-zinc-800">
+                {field.label}{field.isRequired ? " *" : ""}
+              </span>
+              <ChecklistInput
+                field={field}
+                onChange={(value) => setAnswers((current) => ({ ...current, [key]: value }))}
+                value={answers[key]}
+              />
+            </label>
+          );
+        })}
+        <Button type="submit" variant="primary">Salvar checklist</Button>
+      </form>
+    </MobileSection>
+  );
+}
+
+function ChecklistInput({
+  field,
+  onChange,
+  value
+}: {
+  field: WorkOrderChecklistItem;
+  onChange: (value: string | boolean) => void;
+  value: string | boolean | undefined;
+}): React.ReactNode {
+  if (field.type === "pass_fail") {
+    return (
+      <select
+        className={mobileInputClassName}
+        onChange={(event) => onChange(event.target.value === "true")}
+        value={typeof value === "boolean" ? String(value) : ""}
+      >
+        <option value="">Selecionar</option>
+        <option value="true">Conforme</option>
+        <option value="false">Não conforme</option>
+      </select>
+    );
+  }
+
+  if (field.type === "checkbox") {
+    return (
+      <span className="mt-2 flex items-center gap-2">
+        <input
+          checked={Boolean(value)}
+          className="h-4 w-4"
+          onChange={(event) => onChange(event.target.checked)}
+          type="checkbox"
+        />
+        <span className="text-zinc-600">Concluído</span>
+      </span>
+    );
+  }
+
+  return (
+    <input
+      className={mobileInputClassName}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={field.type === "photo" ? "Referência da foto anexada" : "Resposta"}
+      type={field.type === "number" ? "number" : "text"}
+      value={typeof value === "string" ? value : ""}
+    />
+  );
+}
+
+function AttachmentPanel({
+  attachments,
+  disabled,
+  error,
+  onUpload
+}: {
+  attachments: readonly WorkOrderAttachment[];
+  disabled: boolean;
+  error: boolean;
+  onUpload: (file: File, kind: "photo" | "document") => void;
+}): React.ReactNode {
+  const [kind, setKind] = useState<"photo" | "document">("photo");
+
+  return (
+    <MobileSection title="Anexos">
+      <div className="space-y-2">
+        {attachments.length === 0 ? (
+          <p className="text-sm text-zinc-600">Nenhum anexo enviado.</p>
+        ) : (
+          attachments.map((attachment) => (
+            <p className="rounded-md border border-zinc-200 bg-white p-2 text-sm" key={attachment.id}>
+              {attachment.fileName} · {attachment.kind}
+            </p>
+          ))
+        )}
+      </div>
+      <div className="mt-3 grid gap-2">
+        <select className={mobileInputClassName} onChange={(event) => setKind(event.target.value as "photo" | "document")} value={kind}>
+          <option value="photo">Foto</option>
+          <option value="document">Documento</option>
+        </select>
+        <input
+          className="text-sm"
+          disabled={disabled}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) {
+              onUpload(file, kind);
+              event.target.value = "";
+            }
+          }}
+          type="file"
+        />
+        {!disabled ? null : <p className="text-xs text-zinc-500">Envio disponível quando o dispositivo estiver online.</p>}
+        {error ? <p className="text-sm text-red-700">Não foi possível enviar o anexo.</p> : null}
+      </div>
+    </MobileSection>
+  );
+}
+
+function SignaturePanel({
+  disabled,
+  error,
+  onSubmit
+}: {
+  disabled: boolean;
+  error: boolean;
+  onSubmit: (file: File, signerName: string) => void;
+}): React.ReactNode {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [signerName, setSignerName] = useState("");
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  async function submitSignature(): Promise<void> {
+    const canvas = canvasRef.current;
+    const name = signerName.trim();
+    if (!canvas || !name || disabled) {
+      return;
+    }
+
+    const blob = await canvasToBlob(canvas);
+    onSubmit(new File([blob], "assinatura.png", { type: "image/png" }), name);
+  }
+
+  function clearCanvas(): void {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) {
+      return;
+    }
+
+    context.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  function draw(event: React.PointerEvent<HTMLCanvasElement>): void {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context || !isDrawing) {
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    context.lineWidth = 2;
+    context.lineCap = "round";
+    context.strokeStyle = "#18181b";
+    context.lineTo(event.clientX - rect.left, event.clientY - rect.top);
+    context.stroke();
+  }
+
+  return (
+    <MobileSection title="Assinatura">
+      <input
+        className={mobileInputClassName}
+        onChange={(event) => setSignerName(event.target.value)}
+        placeholder="Nome do assinante"
+        value={signerName}
+      />
+      <canvas
+        className="mt-2 h-32 w-full touch-none rounded-md border border-zinc-300 bg-white"
+        height={160}
+        onPointerDown={(event) => {
+          const canvas = canvasRef.current;
+          const context = canvas?.getContext("2d");
+          if (!canvas || !context) {
+            return;
+          }
+          const rect = canvas.getBoundingClientRect();
+          context.beginPath();
+          context.moveTo(event.clientX - rect.left, event.clientY - rect.top);
+          setIsDrawing(true);
+        }}
+        onPointerLeave={() => setIsDrawing(false)}
+        onPointerMove={draw}
+        onPointerUp={() => setIsDrawing(false)}
+        ref={canvasRef}
+        width={360}
+      />
+      <div className="mt-2 flex gap-2">
+        <Button disabled={disabled || !signerName.trim()} onClick={() => void submitSignature()} type="button" variant="primary">
+          Salvar assinatura
+        </Button>
+        <Button onClick={clearCanvas} type="button" variant="secondary">Limpar</Button>
+      </div>
+      {!disabled ? null : <p className="mt-2 text-xs text-zinc-500">Assinatura exige conexão para enviar a imagem.</p>}
+      {error ? <p className="mt-2 text-sm text-red-700">Não foi possível salvar a assinatura.</p> : null}
+    </MobileSection>
+  );
+}
+
+function MobileSection({ children, title }: { children: React.ReactNode; title: string }): React.ReactNode {
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+      <h2 className="mb-2 text-xs font-semibold uppercase text-zinc-500">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
 async function loadWorkOrders(): Promise<WorkOrderSummary[]> {
   if (navigator.onLine) {
     try {
@@ -308,6 +669,63 @@ async function loadWorkOrders(): Promise<WorkOrderSummary[]> {
   return getCachedWorkOrders();
 }
 
+async function loadWorkOrderDetail(id: string): Promise<WorkOrderDetail> {
+  if (navigator.onLine) {
+    try {
+      const response = await apiFetch(`/work-orders/${id}`);
+
+      if (response.ok) {
+        const detail = (await response.json()) as WorkOrderDetail;
+        await putCachedWorkOrderDetail(detail);
+        return detail;
+      }
+    } catch {
+      // Segue para o cache local quando a rede falhar.
+    }
+  }
+
+  const cached = await getCachedWorkOrderDetail(id);
+  if (!cached) {
+    throw new Error("Detalhe da ordem indisponível no cache offline.");
+  }
+
+  return cached;
+}
+
+async function uploadAttachment(
+  workOrderId: string,
+  file: File,
+  kind: "photo" | "document" | "signature"
+): Promise<WorkOrderDetail> {
+  const body = new FormData();
+  body.set("file", file);
+  body.set("kind", kind);
+
+  const response = await apiFetch(`/work-orders/${workOrderId}/attachments`, {
+    body,
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    throw new Error("Falha ao enviar anexo.");
+  }
+
+  return response.json() as Promise<WorkOrderDetail>;
+}
+
+async function addSignature(workOrderId: string, attachmentId: string, signerName: string): Promise<WorkOrderDetail> {
+  const response = await apiFetch(`/work-orders/${workOrderId}/signature`, {
+    body: JSON.stringify({ attachmentId, signerName }),
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    throw new Error("Falha ao salvar assinatura.");
+  }
+
+  return response.json() as Promise<WorkOrderDetail>;
+}
+
 function formatStatus(status: string): string {
   const labels: Record<string, string> = {
     completed: "Concluída",
@@ -318,4 +736,37 @@ function formatStatus(status: string): string {
   };
 
   return labels[status] ?? status;
+}
+
+const mobileInputClassName = "mt-1 h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-950";
+
+function initialChecklistAnswers(checklist: readonly WorkOrderChecklistItem[]): Record<string, string | boolean> {
+  const answers: Record<string, string | boolean> = {};
+  for (const field of checklist) {
+    const key = field.answerKey ?? field.id;
+    if (typeof field.value === "boolean") {
+      answers[key] = field.value;
+    } else if (field.value !== null) {
+      answers[key] = String(field.value);
+    }
+  }
+
+  return answers;
+}
+
+function isEmptyChecklistValue(value: unknown): boolean {
+  return value === undefined || value === null || value === "";
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+        return;
+      }
+
+      reject(new Error("Não foi possível gerar a imagem da assinatura."));
+    }, "image/png");
+  });
 }

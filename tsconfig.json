@@ -4,5 +4,5 @@
     "allowJs": true,
     "noEmit": true
   },
-  "include": ["*.config.*", "eslint.config.mjs", "vitest.config.mts"]
+  "include": ["*.config.*", "eslint.config.mjs", "vitest.config.mts", "tests/**/*.ts"]
 }

@@ -77,4 +77,93 @@ describe("CustomersService", () => {
       service.update({ externalRef: null, id: "id-inexistente", name: "X", notes: null, organizationId })
     ).rejects.toThrow("não encontrado");
   });
+
+  it("cria e atualiza local, contato, contrato e ativo no modo demo", async () => {
+    const service = new CustomersService();
+    const customer = await service.create({
+      externalRef: "CRM-CRUD",
+      name: "Cliente CRUD Admin",
+      notes: null,
+      organizationId
+    });
+
+    const withSite = await service.createSite({
+      accessInstructions: "Entrada lateral.",
+      addressLine1: "Rua Operacional, 10",
+      addressLine2: null,
+      city: "São Paulo",
+      country: "BR",
+      customerId: customer.id,
+      latitude: -23.55,
+      longitude: -46.63,
+      name: "Base Técnica",
+      organizationId,
+      postalCode: "01000-000",
+      state: "SP",
+      territoryId: null
+    });
+    const site = withSite.sites[0]!;
+
+    const withUpdatedSite = await service.updateSite({
+      ...site,
+      addressLine1: "Rua Operacional, 20",
+      customerId: customer.id,
+      organizationId
+    });
+    expect(withUpdatedSite.sites[0]?.addressLine1).toBe("Rua Operacional, 20");
+
+    const withContact = await service.createContact({
+      customerId: customer.id,
+      email: "ops@example.com",
+      name: "Paula Operações",
+      organizationId,
+      phone: null,
+      title: "Operações"
+    });
+    const contact = withContact.contacts[0]!;
+
+    const withUpdatedContact = await service.updateContact({
+      ...contact,
+      customerId: customer.id,
+      phone: "+55 11 90000-0000",
+      organizationId
+    });
+    expect(withUpdatedContact.contacts[0]?.phone).toBe("+55 11 90000-0000");
+
+    const withContract = await service.createContract({
+      customerId: customer.id,
+      endsOn: null,
+      name: "Contrato piloto",
+      organizationId,
+      startsOn: "2026-02-01"
+    });
+    const contract = withContract.contracts[0]!;
+
+    const withUpdatedContract = await service.updateContract({
+      ...contract,
+      customerId: customer.id,
+      endsOn: "2026-12-31",
+      organizationId
+    });
+    expect(withUpdatedContract.contracts[0]?.endsOn).toBe("2026-12-31");
+
+    const withAsset = await service.createAsset({
+      customerId: customer.id,
+      model: "M-100",
+      name: "Gerador principal",
+      organizationId,
+      serialNumber: "GER-001",
+      siteId: site.id,
+      warrantyExpiresOn: null
+    });
+    const asset = withAsset.assets[0]!;
+
+    const withUpdatedAsset = await service.updateAsset({
+      ...asset,
+      customerId: customer.id,
+      name: "Gerador principal revisado",
+      organizationId
+    });
+    expect(withUpdatedAsset.assets[0]?.name).toBe("Gerador principal revisado");
+  });
 });

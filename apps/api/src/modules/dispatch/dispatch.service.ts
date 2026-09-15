@@ -449,6 +449,8 @@ function toTechnicianLane(row: TechnicianRow, assignments: readonly DispatchAssi
   return {
     assignments,
     id: row.id,
+    latitude: row.home_latitude ? Number(row.home_latitude) : null,
+    longitude: row.home_longitude ? Number(row.home_longitude) : null,
     name: row.name,
     skills: row.skills,
     status: row.status,
@@ -567,6 +569,8 @@ function getDemoBoard(date: string): DispatchBoard {
     technicians: demoTechnicians.map((technician) => ({
       assignments: demoAssignments[technician.id] ?? [],
       id: technician.id,
+      latitude: technician.homeLatitude,
+      longitude: technician.homeLongitude,
       name: technician.name,
       skills: technician.skills,
       status: technician.status,

@@ -1,4 +1,4 @@
-import type { SyncOperationType, WorkOrderSummary } from "@fieldops/types";
+import type { SyncOperationType, WorkOrderDetail, WorkOrderSummary } from "@fieldops/types";
 
 export interface QueuedCommand {
   readonly idempotencyKey: string;
@@ -12,8 +12,9 @@ export interface QueuedCommand {
 }
 
 const DB_NAME = "fieldops-technician";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const WORK_ORDERS_STORE = "work-orders";
+const WORK_ORDER_DETAILS_STORE = "work-order-details";
 const COMMAND_QUEUE_STORE = "command-queue";
 
 function isIndexedDbAvailable(): boolean {
@@ -28,6 +29,9 @@ function openDatabase(): Promise<IDBDatabase> {
       const db = request.result;
       if (!db.objectStoreNames.contains(WORK_ORDERS_STORE)) {
         db.createObjectStore(WORK_ORDERS_STORE, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(WORK_ORDER_DETAILS_STORE)) {
+        db.createObjectStore(WORK_ORDER_DETAILS_STORE, { keyPath: "id" });
       }
       if (!db.objectStoreNames.contains(COMMAND_QUEUE_STORE)) {
         db.createObjectStore(COMMAND_QUEUE_STORE, { keyPath: "idempotencyKey" });
@@ -51,9 +55,14 @@ async function withStore<T>(
       const transaction = db.transaction(storeName, mode);
       const store = transaction.objectStore(storeName);
       const request = run(store);
+      let result: T | undefined;
 
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        result = request.result;
+      };
       request.onerror = () => reject(request.error);
+      transaction.oncomplete = () => resolve(result as T);
+      transaction.onerror = () => reject(transaction.error);
     });
   } finally {
     db.close();
@@ -96,6 +105,22 @@ export async function putCachedWorkOrder(item: WorkOrderSummary): Promise<void> 
   }
 
   await withStore(WORK_ORDERS_STORE, "readwrite", (store) => store.put(item));
+}
+
+export async function getCachedWorkOrderDetail(id: string): Promise<WorkOrderDetail | undefined> {
+  if (!isIndexedDbAvailable()) {
+    return undefined;
+  }
+
+  return withStore(WORK_ORDER_DETAILS_STORE, "readonly", (store) => store.get(id));
+}
+
+export async function putCachedWorkOrderDetail(item: WorkOrderDetail): Promise<void> {
+  if (!isIndexedDbAvailable()) {
+    return;
+  }
+
+  await withStore(WORK_ORDER_DETAILS_STORE, "readwrite", (store) => store.put(item));
 }
 
 export async function enqueueCommand(command: QueuedCommand): Promise<void> {

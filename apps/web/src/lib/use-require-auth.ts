@@ -3,11 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 
-import { clearSession, getStoredSession, type StoredSession } from "./api-client";
+import { clearSession, getStoredSession, subscribeToSessionChanges, type StoredSession } from "./api-client";
 
 function subscribe(callback: () => void): () => void {
-  window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
+  return subscribeToSessionChanges(callback);
 }
 
 function getServerSnapshot(): StoredSession | undefined {
@@ -26,8 +25,16 @@ export function useRequireAuth(): { session: StoredSession | undefined; logout: 
 
   useEffect(() => {
     if (!session) {
-      router.replace("/login");
+      const redirectTimer = window.setTimeout(() => {
+        if (!getStoredSession()) {
+          router.replace("/login");
+        }
+      }, 0);
+
+      return () => window.clearTimeout(redirectTimer);
     }
+
+    return undefined;
   }, [router, session]);
 
   const logout = (): void => {
