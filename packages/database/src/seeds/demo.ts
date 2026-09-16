@@ -133,7 +133,7 @@ export function createDemoSeedStatements(now = new Date("2026-01-15T12:00:00.000
     ),
     statement(
       `insert into user_roles (user_id, role_id)
-       values ($1, $2), ($3, $4), ($5, $4)
+       values ($1, $2), ($3, $4), ($5, $6)
        on conflict do nothing`,
       [demoIds.userAdmin, demoIds.roleAdmin, demoIds.userAna, demoIds.roleTechnician, demoIds.userBruno, demoIds.roleTechnician]
     ),
