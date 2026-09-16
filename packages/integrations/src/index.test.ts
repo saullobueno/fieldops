@@ -12,9 +12,11 @@ import {
   LocalStorageAdapter,
   MockCalendarAdapter,
   MockMapsAdapter,
-  R2StorageAdapter,
+  UpstashBlobStorageAdapter,
   type MapsAdapter
 } from "./index";
+
+const TEST_UPSTASH_BLOB_TOKEN = "AgABAAEBYnBo";
 
 describe("MockMapsAdapter", () => {
   it("gera estimativas determinísticas de rota", async () => {
@@ -116,19 +118,50 @@ describe("LocalStorageAdapter", () => {
 });
 
 describe("createStorageAdapter", () => {
-  it("usa o adaptador local quando nenhuma credencial de R2 é configurada", () => {
+  it("usa o adaptador local quando nenhum token do Upstash Blob é configurado", () => {
     const adapter = createStorageAdapter({ localRootDir: "storage" });
     expect(adapter).toBeInstanceOf(LocalStorageAdapter);
     expect(adapter.provider).toBe("local-disk");
   });
 
-  it("usa o adaptador R2 quando as credenciais são configuradas", () => {
+  it("usa o adaptador Upstash Blob quando o token é configurado", () => {
     const adapter = createStorageAdapter({
       localRootDir: "storage",
-      r2: { accessKeyId: "key", accountId: "acc", bucket: "bucket", secretAccessKey: "secret" }
+      upstashBlobToken: TEST_UPSTASH_BLOB_TOKEN
     });
-    expect(adapter).toBeInstanceOf(R2StorageAdapter);
-    expect(adapter.provider).toBe("cloudflare-r2");
+    expect(adapter).toBeInstanceOf(UpstashBlobStorageAdapter);
+    expect(adapter.provider).toBe("upstash-blob");
+  });
+});
+
+describe("UpstashBlobStorageAdapter", () => {
+  it("faz upload e gera URL assinada pelo bucket configurado", async () => {
+    const calls: Array<{ readonly path: string; readonly contentType?: string; readonly expiresIn?: number }> = [];
+    const adapter = new UpstashBlobStorageAdapter(TEST_UPSTASH_BLOB_TOKEN, {
+      list: () => Promise.resolve({ blobs: [], cursor: undefined }),
+      put: (path, _body, options) => {
+        calls.push({ contentType: options.contentType, path });
+        return Promise.resolve();
+      },
+      signedReadUrl: (path, options) => {
+        calls.push({ expiresIn: options.expiresIn, path });
+        return Promise.resolve({ url: `https://signed.example.com/${path}?expires=${options.expiresIn}` });
+      }
+    });
+
+    await adapter.upload({
+      body: Buffer.from("conteudo"),
+      key: "work-orders/wo-9001/foto.jpg",
+      mimeType: "image/jpeg"
+    });
+
+    await expect(adapter.getDownloadUrl("work-orders/wo-9001/foto.jpg", 300)).resolves.toBe(
+      "https://signed.example.com/work-orders/wo-9001/foto.jpg?expires=300"
+    );
+    expect(calls).toEqual([
+      { contentType: "image/jpeg", path: "work-orders/wo-9001/foto.jpg" },
+      { expiresIn: 300, path: "work-orders/wo-9001/foto.jpg" }
+    ]);
   });
 });
 

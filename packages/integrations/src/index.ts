@@ -1,8 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { GetObjectCommand, HeadBucketCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { Bucket, type ListPage } from "@upstash/blob";
 
 export interface IntegrationAdapter {
   readonly provider: string;
@@ -168,33 +167,33 @@ export class LocalStorageAdapter implements StorageAdapter {
   }
 }
 
-/**
- * Fronteira de integração externa real: grava objetos no Cloudflare R2 via
- * API compatível com S3. O domínio nunca importa esta classe diretamente —
- * só o contrato `StorageAdapter` — então trocar de fornecedor de storage não
- * vaza para quem consome upload de anexos.
- */
-export class R2StorageAdapter implements StorageAdapter {
-  readonly provider = "cloudflare-r2";
+interface UpstashBlobBucket {
+  put(path: string, body: Buffer, options: { readonly contentType: string }): Promise<unknown>;
+  signedReadUrl(path: string, options: { readonly expiresIn: number }): Promise<{ readonly url: string }>;
+  list(options: { readonly limit: number }): Promise<ListPage>;
+}
 
-  private readonly client: S3Client;
+/**
+ * Fronteira de integração externa real: grava objetos no Upstash Blob. O
+ * domínio nunca importa esta classe diretamente — só o contrato
+ * `StorageAdapter` — então trocar de fornecedor de storage não vaza para quem
+ * consome upload de anexos.
+ */
+export class UpstashBlobStorageAdapter implements StorageAdapter {
+  readonly provider = "upstash-blob";
+
+  private readonly bucket: UpstashBlobBucket;
 
   constructor(
-    private readonly bucket: string,
-    accountId: string,
-    accessKeyId: string,
-    secretAccessKey: string
+    token: string,
+    bucket?: UpstashBlobBucket
   ) {
-    this.client = new S3Client({
-      credentials: { accessKeyId, secretAccessKey },
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      region: "auto"
-    });
+    this.bucket = bucket ?? new Bucket({ enableTelemetry: false, token });
   }
 
   async health(): Promise<"ok" | "degraded"> {
     try {
-      await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      await this.bucket.list({ limit: 1 });
       return "ok";
     } catch {
       return "degraded";
@@ -202,34 +201,21 @@ export class R2StorageAdapter implements StorageAdapter {
   }
 
   async upload(input: StorageUploadInput): Promise<void> {
-    await this.client.send(
-      new PutObjectCommand({
-        Body: input.body,
-        Bucket: this.bucket,
-        ContentType: input.mimeType,
-        Key: input.key
-      })
-    );
+    await this.bucket.put(input.key, input.body, { contentType: input.mimeType });
   }
 
   async getDownloadUrl(key: string, expiresInSeconds: number): Promise<string> {
-    return getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
-      expiresIn: expiresInSeconds
-    });
+    const signedUrl = await this.bucket.signedReadUrl(key, { expiresIn: expiresInSeconds });
+    return signedUrl.url;
   }
 }
 
 export function createStorageAdapter(config: {
   readonly localRootDir: string;
-  readonly r2?: {
-    readonly bucket: string;
-    readonly accountId: string;
-    readonly accessKeyId: string;
-    readonly secretAccessKey: string;
-  };
+  readonly upstashBlobToken?: string;
 }): StorageAdapter {
-  return config.r2
-    ? new R2StorageAdapter(config.r2.bucket, config.r2.accountId, config.r2.accessKeyId, config.r2.secretAccessKey)
+  return config.upstashBlobToken
+    ? new UpstashBlobStorageAdapter(config.upstashBlobToken)
     : new LocalStorageAdapter(config.localRootDir);
 }
 
