@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
 import { apiFetch } from "../../lib/api-client";
-import { MapView, type MapMarker } from "../../lib/map-view";
+import { MapView, type MapMarker, type MapRoute } from "../../lib/map-view";
 import { RealtimeStatusBadge } from "../../lib/realtime-status-badge";
 import { useRealtimeStream } from "../../lib/use-realtime-stream";
 import { useRequireAuth } from "../../lib/use-require-auth";
@@ -107,6 +107,7 @@ export default function DispatchPage(): React.ReactNode {
           {(board) => (
             <DndContext onDragEnd={handleDragEnd} onDragStart={handleDragStart}>
               <DispatchBoardContent
+                activeWorkOrderId={activeWorkOrderId}
                 board={board}
                 candidateLoading={candidatesQuery.isFetching}
                 candidates={candidatesQuery.data ?? []}
@@ -120,15 +121,21 @@ export default function DispatchPage(): React.ReactNode {
 }
 
 function DispatchBoardContent({
+  activeWorkOrderId,
   board,
   candidateLoading,
   candidates
 }: {
+  activeWorkOrderId: string | undefined;
   board: DispatchBoard;
   candidateLoading: boolean;
   candidates: readonly DispatchCandidate[];
 }): React.ReactNode {
   const markers = useMemo(() => buildDispatchMarkers(board), [board]);
+  const routes = useMemo(
+    () => buildDispatchRoutes(board, activeWorkOrderId, candidates),
+    [board, activeWorkOrderId, candidates]
+  );
 
   return (
     <div className="flex flex-1 flex-col gap-5">
@@ -136,7 +143,10 @@ function DispatchBoardContent({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold">Mapa do despacho</h2>
-            <p className="mt-1 text-xs text-[#66736D]">Técnicos e ordens pendentes com coordenadas conhecidas.</p>
+            <p className="mt-1 text-xs text-[#66736D]">
+              Técnicos e ordens pendentes com coordenadas conhecidas.
+              {routes.length > 0 ? " Arraste em andamento: linhas mostram a distância até cada técnico." : ""}
+            </p>
           </div>
           <p className="text-xs text-[#66736D]">{markers.length} marcador(es)</p>
         </div>
@@ -145,7 +155,7 @@ function DispatchBoardContent({
             <EmptyState message="Sem coordenadas disponíveis para esta data." />
           </div>
         ) : (
-          <MapView className="mt-3 h-72 w-full overflow-hidden rounded-lg border border-[#C7D0CB]" markers={markers} />
+          <MapView className="mt-3 h-72 w-full overflow-hidden rounded-lg border border-[#C7D0CB]" markers={markers} routes={routes} />
         )}
       </section>
       <div className="grid flex-1 gap-5 xl:grid-cols-[300px_1fr]">
@@ -382,6 +392,44 @@ function buildDispatchMarkers(board: DispatchBoard): readonly MapMarker[] {
   });
 
   return [...technicianMarkers, ...orderMarkers];
+}
+
+/**
+ * Enquanto uma ordem não atribuída está sendo arrastada, desenha uma linha
+ * reta (não uma rota real, que exigiria consultar o provedor de mapas por
+ * candidato) até a base de cada técnico com pontuação calculada — apoia
+ * visualmente a mesma decisão que os cartões de pontuação já mostram.
+ */
+function buildDispatchRoutes(
+  board: DispatchBoard,
+  activeWorkOrderId: string | undefined,
+  candidates: readonly DispatchCandidate[]
+): readonly MapRoute[] {
+  if (!activeWorkOrderId) {
+    return [];
+  }
+
+  const workOrder = board.unassigned.find((item) => item.id === activeWorkOrderId);
+  if (!workOrder || workOrder.latitude === null || workOrder.longitude === null) {
+    return [];
+  }
+
+  return candidates.flatMap((candidate): MapRoute[] => {
+    const technician = board.technicians.find((item) => item.id === candidate.technicianId);
+    if (!technician || technician.latitude === null || technician.longitude === null) {
+      return [];
+    }
+
+    return [
+      {
+        coordinates: [
+          [technician.longitude, technician.latitude],
+          [workOrder.longitude!, workOrder.latitude!]
+        ],
+        id: `route-${candidate.technicianId}`
+      }
+    ];
+  });
 }
 
 async function fetchDispatchBoard(date: string): Promise<DispatchBoard> {

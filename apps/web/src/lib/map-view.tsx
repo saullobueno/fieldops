@@ -12,6 +12,34 @@ export interface MapMarker {
   readonly tone?: "default" | "risk";
 }
 
+export interface MapRoute {
+  readonly id: string;
+  readonly coordinates: readonly (readonly [number, number])[];
+}
+
+const ROUTES_SOURCE_ID = "fieldops-routes";
+const ROUTES_LAYER_ID = "fieldops-routes-line";
+
+interface RouteFeatureCollection {
+  readonly type: "FeatureCollection";
+  readonly features: readonly {
+    readonly type: "Feature";
+    readonly properties: Record<string, never>;
+    readonly geometry: { readonly type: "LineString"; readonly coordinates: readonly (readonly [number, number])[] };
+  }[];
+}
+
+function toRouteCollection(routes: readonly MapRoute[]): RouteFeatureCollection {
+  return {
+    features: routes.map((route) => ({
+      geometry: { coordinates: route.coordinates, type: "LineString" as const },
+      properties: {},
+      type: "Feature" as const
+    })),
+    type: "FeatureCollection"
+  };
+}
+
 // Estilo público do MapLibre (sem necessidade de chave) usado até
 // NEXT_PUBLIC_MAPTILER_KEY ser configurada. Com a chave, troca para o
 // estilo real do MapTiler (free tier).
@@ -24,10 +52,12 @@ function styleUrl(): string {
 
 export function MapView({
   className,
-  markers
+  markers,
+  routes = []
 }: {
   className?: string;
   markers: readonly MapMarker[];
+  routes?: readonly MapRoute[];
 }): React.ReactNode {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | undefined>(undefined);
@@ -60,11 +90,29 @@ export function MapView({
       return;
     }
 
-    function renderMarkers(): void {
+    function ensureRoutesLayer(): void {
+      if (map!.getSource(ROUTES_SOURCE_ID)) {
+        return;
+      }
+
+      map!.addSource(ROUTES_SOURCE_ID, { data: toRouteCollection([]), type: "geojson" });
+      map!.addLayer({
+        id: ROUTES_LAYER_ID,
+        paint: { "line-color": "#0E5F4B", "line-dasharray": [2, 2], "line-width": 2 },
+        source: ROUTES_SOURCE_ID,
+        type: "line"
+      });
+    }
+
+    function renderMarkersAndRoutes(): void {
       for (const marker of markerInstancesRef.current) {
         marker.remove();
       }
       markerInstancesRef.current = [];
+
+      ensureRoutesLayer();
+      const routesSource = map!.getSource(ROUTES_SOURCE_ID) as maplibregl.GeoJSONSource;
+      void routesSource.setData(toRouteCollection(routes));
 
       if (markers.length === 0 || !map) {
         return;
@@ -95,11 +143,11 @@ export function MapView({
     }
 
     if (map.isStyleLoaded()) {
-      renderMarkers();
+      renderMarkersAndRoutes();
     } else {
-      map.once("load", renderMarkers);
+      map.once("load", renderMarkersAndRoutes);
     }
-  }, [markers]);
+  }, [markers, routes]);
 
   return <div className={className} ref={containerRef} />;
 }
