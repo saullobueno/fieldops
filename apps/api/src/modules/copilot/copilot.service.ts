@@ -21,7 +21,11 @@ import { DispatchService } from "../dispatch/dispatch.service.js";
 import { POSTGRES_POOL } from "../infrastructure/infrastructure.module.js";
 import { WorkOrdersService } from "../work-orders/work-orders.service.js";
 
-const MODEL = "llama-3.3-70b-versatile";
+// llama-3.3-70b-versatile foi descontinuado pela Groq (confirmado em produção
+// na Fase 41: a chave real retornava 404 "model_not_found", fazendo o
+// copiloto cair sempre no fallback heurístico silenciosamente). gpt-oss-120b
+// é o substituto atual com suporte a tool use + json_mode no tier gratuito.
+const MODEL = "openai/gpt-oss-120b";
 const MAX_TOOL_ITERATIONS = 6;
 const MAX_OUTPUT_TOKENS = 4_096;
 

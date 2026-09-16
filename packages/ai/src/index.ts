@@ -43,12 +43,12 @@ export const copilotToolDefinitions: readonly CopilotToolDefinition[] = [
     inputSchema: {
       additionalProperties: false,
       properties: {
-        workOrderId: {
-          description: "Identificador da ordem de serviço não atribuída.",
+        workOrderNumber: {
+          description: "Número da ordem de serviço não atribuída (ex.: \"WO-1003\"), como retornado por get_sla_risk_work_orders.",
           type: "string"
         }
       },
-      required: ["workOrderId"],
+      required: ["workOrderNumber"],
       type: "object"
     },
     name: "get_dispatch_candidates"

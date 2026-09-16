@@ -128,46 +128,58 @@ describe("Ciclo de vida de senha (sem Postgres configurado)", () => {
     });
   }
 
-  it("aceita um convite e devolve uma sessão válida", async () => {
-    const email = `convite-${Date.now()}@acmefield.example`;
-    seedInvitedDemoUser(email);
-    const service = new AuthService();
+  // Testes deste describe encadeiam várias operações bcrypt (custo 12) reais
+  // — mais lento que o timeout padrão de 5s em máquinas sob carga.
+  const BCRYPT_HEAVY_TEST_TIMEOUT_MS = 15_000;
 
-    // Usuário ainda convidado (sem senha) não deve conseguir link de redefinição.
-    const { resetToken } = await service.forgotPassword(email);
-    expect(resetToken).toBeUndefined();
+  it(
+    "aceita um convite e devolve uma sessão válida",
+    async () => {
+      const email = `convite-${Date.now()}@acmefield.example`;
+      seedInvitedDemoUser(email);
+      const service = new AuthService();
 
-    const inviteToken = createInviteTokenFor(email);
-    const result = await service.acceptInvite(inviteToken, "senha-nova-123");
+      // Usuário ainda convidado (sem senha) não deve conseguir link de redefinição.
+      const { resetToken } = await service.forgotPassword(email);
+      expect(resetToken).toBeUndefined();
 
-    expect(result.actor.id).toBe(demoUsers.find((user) => user.email === email)?.id);
+      const inviteToken = createInviteTokenFor(email);
+      const result = await service.acceptInvite(inviteToken, "senha-nova-123");
 
-    // O mesmo token não pode ser reutilizado — o fingerprint mudou ao definir a senha.
-    await expect(service.acceptInvite(inviteToken, "outra-senha-123")).rejects.toThrow(BadRequestException);
-  });
+      expect(result.actor.id).toBe(demoUsers.find((user) => user.email === email)?.id);
 
-  it("permite redefinir a senha de um usuário ativo e depois logar com a nova senha", async () => {
-    const email = `reset-${Date.now()}@acmefield.example`;
-    demoUsers.push({
-      email,
-      id: `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      name: "Ativo de teste",
-      organizationId: DEMO_ORGANIZATION_ID,
-      passwordHash: await hashPassword("senha-antiga-123"),
-      roleIds: [],
-      status: "active"
-    });
-    const service = new AuthService();
+      // O mesmo token não pode ser reutilizado — o fingerprint mudou ao definir a senha.
+      await expect(service.acceptInvite(inviteToken, "outra-senha-123")).rejects.toThrow(BadRequestException);
+    },
+    BCRYPT_HEAVY_TEST_TIMEOUT_MS
+  );
 
-    const { resetToken } = await service.forgotPassword(email);
-    expect(resetToken).toBeDefined();
+  it(
+    "permite redefinir a senha de um usuário ativo e depois logar com a nova senha",
+    async () => {
+      const email = `reset-${Date.now()}@acmefield.example`;
+      demoUsers.push({
+        email,
+        id: `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: "Ativo de teste",
+        organizationId: DEMO_ORGANIZATION_ID,
+        passwordHash: await hashPassword("senha-antiga-123"),
+        roleIds: [],
+        status: "active"
+      });
+      const service = new AuthService();
 
-    await service.resetPassword(resetToken!, "senha-nova-456");
+      const { resetToken } = await service.forgotPassword(email);
+      expect(resetToken).toBeDefined();
 
-    const result = await service.login(email, "senha-nova-456");
-    expect(result.actor.organizationId).toBe(DEMO_ORGANIZATION_ID);
-    await expect(service.login(email, "senha-antiga-123")).rejects.toThrow(UnauthorizedException);
-  });
+      await service.resetPassword(resetToken!, "senha-nova-456");
+
+      const result = await service.login(email, "senha-nova-456");
+      expect(result.actor.organizationId).toBe(DEMO_ORGANIZATION_ID);
+      await expect(service.login(email, "senha-antiga-123")).rejects.toThrow(UnauthorizedException);
+    },
+    BCRYPT_HEAVY_TEST_TIMEOUT_MS
+  );
 
   it("não gera token de redefinição para email desconhecido", async () => {
     const service = new AuthService();
@@ -177,44 +189,52 @@ describe("Ciclo de vida de senha (sem Postgres configurado)", () => {
     expect(resetToken).toBeUndefined();
   });
 
-  it("troca a senha do próprio usuário autenticado", async () => {
-    const email = `troca-${Date.now()}@acmefield.example`;
-    const passwordHash = await hashPassword("senha-atual-123");
-    demoUsers.push({
-      email,
-      id: `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      name: "Troca de teste",
-      organizationId: DEMO_ORGANIZATION_ID,
-      passwordHash,
-      roleIds: [],
-      status: "active"
-    });
-    const service = new AuthService();
-    const actor = { ...(await service.login(email, "senha-atual-123")).actor };
+  it(
+    "troca a senha do próprio usuário autenticado",
+    async () => {
+      const email = `troca-${Date.now()}@acmefield.example`;
+      const passwordHash = await hashPassword("senha-atual-123");
+      demoUsers.push({
+        email,
+        id: `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: "Troca de teste",
+        organizationId: DEMO_ORGANIZATION_ID,
+        passwordHash,
+        roleIds: [],
+        status: "active"
+      });
+      const service = new AuthService();
+      const actor = { ...(await service.login(email, "senha-atual-123")).actor };
 
-    await service.changePassword(actor, "senha-atual-123", "senha-troca-456");
+      await service.changePassword(actor, "senha-atual-123", "senha-troca-456");
 
-    await expect(service.login(email, "senha-atual-123")).rejects.toThrow(UnauthorizedException);
-    const result = await service.login(email, "senha-troca-456");
-    expect(result.actor.id).toBe(actor.id);
-  });
+      await expect(service.login(email, "senha-atual-123")).rejects.toThrow(UnauthorizedException);
+      const result = await service.login(email, "senha-troca-456");
+      expect(result.actor.id).toBe(actor.id);
+    },
+    BCRYPT_HEAVY_TEST_TIMEOUT_MS
+  );
 
-  it("rejeita troca de senha com senha atual incorreta", async () => {
-    const email = `troca-errada-${Date.now()}@acmefield.example`;
-    demoUsers.push({
-      email,
-      id: `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      name: "Troca errada",
-      organizationId: DEMO_ORGANIZATION_ID,
-      passwordHash: await hashPassword("senha-certa-123"),
-      roleIds: [],
-      status: "active"
-    });
-    const service = new AuthService();
-    const actor = (await service.login(email, "senha-certa-123")).actor;
+  it(
+    "rejeita troca de senha com senha atual incorreta",
+    async () => {
+      const email = `troca-errada-${Date.now()}@acmefield.example`;
+      demoUsers.push({
+        email,
+        id: `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: "Troca errada",
+        organizationId: DEMO_ORGANIZATION_ID,
+        passwordHash: await hashPassword("senha-certa-123"),
+        roleIds: [],
+        status: "active"
+      });
+      const service = new AuthService();
+      const actor = (await service.login(email, "senha-certa-123")).actor;
 
-    await expect(service.changePassword(actor, "senha-errada", "nova-senha-123")).rejects.toThrow(UnauthorizedException);
-  });
+      await expect(service.changePassword(actor, "senha-errada", "nova-senha-123")).rejects.toThrow(UnauthorizedException);
+    },
+    BCRYPT_HEAVY_TEST_TIMEOUT_MS
+  );
 
   function createInviteTokenFor(email: string): string {
     const user = demoUsers.find((candidate) => candidate.email === email);

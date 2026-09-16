@@ -24,7 +24,7 @@ FieldOps é uma plataforma de operações de serviços em campo (field service m
 
   ![Relatórios](docs/screenshots/relatorios.png)
 
-- **Copiloto de IA** — usa a Groq (`llama-3.3-70b-versatile`, free tier) com ferramentas somente leitura e loop de tool-use; sem chave configurada, cai em um caminho heurístico determinístico. Nunca reatribui uma ordem sozinho — toda ação sugerida exige aprovação explícita do usuário.
+- **Copiloto de IA** — usa a Groq (`openai/gpt-oss-120b`, free tier) com ferramentas somente leitura e loop de tool-use; sem chave configurada, cai em um caminho heurístico determinístico. Nunca reatribui uma ordem sozinho — toda ação sugerida exige aprovação explícita do usuário.
 
   ![Copiloto de IA](docs/screenshots/copiloto.png)
 
