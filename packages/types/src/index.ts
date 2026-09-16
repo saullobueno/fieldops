@@ -114,6 +114,7 @@ export interface WorkOrderChecklistItem {
   readonly isRequired: boolean;
   readonly value: string | number | boolean | null;
   readonly options?: readonly string[];
+  readonly validation?: Record<string, unknown>;
 }
 
 export interface WorkOrderAttachment {

@@ -14,6 +14,7 @@ export const appShellNavItems: readonly AppShellNavItem[] = [
   { href: "#", label: "Técnicos" },
   { href: "/clientes", label: "Clientes" },
   { href: "/relatorios", label: "Relatórios" },
+  { href: "/checklists", label: "Checklists" },
   { href: "/copilot", label: "Copiloto" },
   { href: "/notificacoes", label: "Notificações" }
 ];

@@ -115,6 +115,19 @@ describe("WorkOrdersService", () => {
     ).rejects.toThrow("obrigatórios");
   });
 
+  it("rejeita atualização de checklist quando o valor numérico está fora do intervalo permitido", async () => {
+    const service = createService();
+
+    await expect(
+      service.updateChecklist({
+        actorUserId: "tester",
+        answers: { foto_painel: true, leitura_eletrica: 999, pressao_entrada: true },
+        id: "00000000-0000-4000-8000-000000000901",
+        organizationId: "00000000-0000-4000-8000-000000000001"
+      })
+    ).rejects.toThrow("formato inválido");
+  });
+
   it("adiciona assinatura vinculada a anexo existente da ordem", async () => {
     const service = createService();
 

@@ -125,7 +125,9 @@ describe("validateChecklistAnswers", () => {
   ];
 
   it("retorna as chaves obrigatórias sem resposta", () => {
-    expect(validateChecklistAnswers(fields, { pressao_entrada: true })).toEqual(["foto_painel"]);
+    expect(validateChecklistAnswers(fields, { pressao_entrada: true })).toEqual([
+      { key: "foto_painel", reason: "required" }
+    ]);
   });
 
   it("aceita zero e falso como respostas válidas", () => {
@@ -138,6 +140,28 @@ describe("validateChecklistAnswers", () => {
     expect(
       validateChecklistAnswers(fields, { foto_painel: "att-1", pressao_entrada: true })
     ).toEqual([]);
+  });
+
+  it("rejeita número fora do intervalo min/max", () => {
+    const numericFields = [
+      { isRequired: true, key: "leitura", type: "number" as const, validation: { max: 250, min: 0 } }
+    ];
+
+    expect(validateChecklistAnswers(numericFields, { leitura: 300 })).toEqual([
+      { key: "leitura", reason: "format" }
+    ]);
+    expect(validateChecklistAnswers(numericFields, { leitura: 120 })).toEqual([]);
+  });
+
+  it("rejeita texto que não bate com o padrão regex", () => {
+    const patternFields = [
+      { isRequired: true, key: "codigo", type: "text" as const, validation: { pattern: "^[A-Z]{3}-\\d{4}$" } }
+    ];
+
+    expect(validateChecklistAnswers(patternFields, { codigo: "abc" })).toEqual([
+      { key: "codigo", reason: "format" }
+    ]);
+    expect(validateChecklistAnswers(patternFields, { codigo: "ABC-1234" })).toEqual([]);
   });
 });
 

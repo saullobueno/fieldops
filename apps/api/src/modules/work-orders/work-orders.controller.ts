@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   Inject,
@@ -187,6 +188,52 @@ export class WorkOrdersController {
       actorUserId: currentActor.id,
       body: parsedBody.data.body,
       id,
+      organizationId: currentActor.organizationId
+    });
+  }
+
+  @Patch(":id/notes/:noteId")
+  @RequirePermissions("work_order:update")
+  async updateNote(
+    @CurrentActor() actor: AuthenticatedActor | undefined,
+    @Param("id") id: string,
+    @Param("noteId") noteId: string,
+    @Body() body: unknown
+  ): Promise<WorkOrderDetail> {
+    const currentActor = requireActor(actor);
+    const parsedBody = addNoteSchema.safeParse(body);
+
+    if (!parsedBody.success) {
+      throw new BadRequestException("Nota inválida para ordem de serviço.");
+    }
+
+    const detail = await this.workOrdersService.getById(id, currentActor.organizationId);
+    assertObjectPermission(currentActor, "work_order:update", detail);
+
+    return this.workOrdersService.updateNote({
+      actorUserId: currentActor.id,
+      body: parsedBody.data.body,
+      id,
+      noteId,
+      organizationId: currentActor.organizationId
+    });
+  }
+
+  @Delete(":id/notes/:noteId")
+  @RequirePermissions("work_order:update")
+  async deleteNote(
+    @CurrentActor() actor: AuthenticatedActor | undefined,
+    @Param("id") id: string,
+    @Param("noteId") noteId: string
+  ): Promise<WorkOrderDetail> {
+    const currentActor = requireActor(actor);
+    const detail = await this.workOrdersService.getById(id, currentActor.organizationId);
+    assertObjectPermission(currentActor, "work_order:update", detail);
+
+    return this.workOrdersService.deleteNote({
+      actorUserId: currentActor.id,
+      id,
+      noteId,
       organizationId: currentActor.organizationId
     });
   }

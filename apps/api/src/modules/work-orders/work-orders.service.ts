@@ -1,5 +1,11 @@
 import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
-import { assertWorkOrderTransition, validateChecklistAnswers, type ChecklistFieldType, type WorkOrderStatus } from "@fieldops/domain";
+import {
+  assertWorkOrderTransition,
+  validateChecklistAnswers,
+  type ChecklistFieldType,
+  type ChecklistValidationError,
+  type WorkOrderStatus
+} from "@fieldops/domain";
 import type { WorkOrderAuditItem, WorkOrderDetail, WorkOrderListResponse, WorkOrderSignature, WorkOrderSummary } from "@fieldops/types";
 import type pg from "pg";
 
@@ -28,6 +34,21 @@ export interface WorkOrderNoteInput {
   readonly body: string;
   readonly id: string;
   readonly organizationId: string;
+}
+
+export interface WorkOrderNoteUpdateInput {
+  readonly id: string;
+  readonly noteId: string;
+  readonly organizationId: string;
+  readonly actorUserId: string;
+  readonly body: string;
+}
+
+export interface WorkOrderNoteDeleteInput {
+  readonly id: string;
+  readonly noteId: string;
+  readonly organizationId: string;
+  readonly actorUserId: string;
 }
 
 export interface WorkOrderAuditFilter {
@@ -225,6 +246,40 @@ export class WorkOrdersService {
       }
 
       return addMemoryNote(input);
+    }
+  }
+
+  async updateNote(input: WorkOrderNoteUpdateInput): Promise<WorkOrderDetail> {
+    if (!this.postgresPool) {
+      return updateMemoryNote(input);
+    }
+
+    try {
+      await this.updateDatabaseNote(input);
+      return await this.getFromDatabase(input.id, input.organizationId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      return updateMemoryNote(input);
+    }
+  }
+
+  async deleteNote(input: WorkOrderNoteDeleteInput): Promise<WorkOrderDetail> {
+    if (!this.postgresPool) {
+      return deleteMemoryNote(input);
+    }
+
+    try {
+      await this.deleteDatabaseNote(input);
+      return await this.getFromDatabase(input.id, input.organizationId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      return deleteMemoryNote(input);
     }
   }
 
@@ -476,21 +531,29 @@ export class WorkOrdersService {
         throw new NotFoundException("Checklist não configurado para esta ordem.");
       }
 
-      const fields = await client.query<{ key: string; is_required: boolean }>(
-        `select key, is_required
+      const fields = await client.query<{
+        key: string;
+        is_required: boolean;
+        type: ChecklistFieldType;
+        validation: Record<string, unknown> | null;
+      }>(
+        `select key, is_required, type, validation
          from form_fields
          where checklist_version_id = $1`,
         [checklistVersionId]
       );
 
-      const missingKeys = validateChecklistAnswers(
-        fields.rows.map((field) => ({ isRequired: field.is_required, key: field.key })),
+      const checklistErrors = validateChecklistAnswers(
+        fields.rows.map((field) => ({
+          isRequired: field.is_required,
+          key: field.key,
+          type: field.type,
+          validation: field.validation ?? undefined
+        })),
         input.answers
       );
 
-      if (missingKeys.length > 0) {
-        throw new BadRequestException(`Campos obrigatórios sem resposta: ${missingKeys.join(", ")}.`);
-      }
+      throwOnChecklistErrors(checklistErrors);
 
       const technician = await client.query<{ id: string }>(
         `select id
@@ -592,6 +655,31 @@ export class WorkOrdersService {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  private async updateDatabaseNote(input: WorkOrderNoteUpdateInput): Promise<void> {
+    const result = await this.postgresPool!.query(
+      `update work_order_events
+       set payload = $1::jsonb
+       where id = $2 and work_order_id = $3 and organization_id = $4 and type = 'note_added'`,
+      [JSON.stringify({ body: input.body }), input.noteId, input.id, input.organizationId]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException("Nota não encontrada.");
+    }
+  }
+
+  private async deleteDatabaseNote(input: WorkOrderNoteDeleteInput): Promise<void> {
+    const result = await this.postgresPool!.query(
+      `delete from work_order_events
+       where id = $1 and work_order_id = $2 and organization_id = $3 and type = 'note_added'`,
+      [input.noteId, input.id, input.organizationId]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException("Nota não encontrada.");
     }
   }
 
@@ -920,14 +1008,17 @@ function updateMemoryStatus(input: {
 
 function updateMemoryChecklist(input: WorkOrderChecklistUpdate): WorkOrderDetail {
   const current = getFromMemory(input.id, input.organizationId);
-  const missingKeys = validateChecklistAnswers(
-    current.checklist.map((item) => ({ isRequired: item.isRequired, key: item.answerKey ?? item.id })),
+  const checklistErrors = validateChecklistAnswers(
+    current.checklist.map((item) => ({
+      isRequired: item.isRequired,
+      key: item.answerKey ?? item.id,
+      type: item.type,
+      validation: item.validation
+    })),
     input.answers
   );
 
-  if (missingKeys.length > 0) {
-    throw new BadRequestException(`Campos obrigatórios sem resposta: ${missingKeys.join(", ")}.`);
-  }
+  throwOnChecklistErrors(checklistErrors);
 
   const checklist = current.checklist.map((item) => {
     const key = item.answerKey ?? item.id;
@@ -981,6 +1072,36 @@ function addMemoryNote(input: WorkOrderNoteInput): WorkOrderDetail {
       },
       ...current.timeline
     ]
+  };
+
+  replaceMemoryOrder(updated);
+  return updated;
+}
+
+function updateMemoryNote(input: WorkOrderNoteUpdateInput): WorkOrderDetail {
+  const current = getFromMemory(input.id, input.organizationId);
+  if (!current.notes.some((note) => note.id === input.noteId)) {
+    throw new NotFoundException("Nota não encontrada.");
+  }
+
+  const updated = {
+    ...current,
+    notes: current.notes.map((note) => (note.id === input.noteId ? { ...note, body: input.body } : note))
+  };
+
+  replaceMemoryOrder(updated);
+  return updated;
+}
+
+function deleteMemoryNote(input: WorkOrderNoteDeleteInput): WorkOrderDetail {
+  const current = getFromMemory(input.id, input.organizationId);
+  if (!current.notes.some((note) => note.id === input.noteId)) {
+    throw new NotFoundException("Nota não encontrada.");
+  }
+
+  const updated = {
+    ...current,
+    notes: current.notes.filter((note) => note.id !== input.noteId)
   };
 
   replaceMemoryOrder(updated);
@@ -1172,12 +1293,25 @@ function toChecklistItem(row: ChecklistRow) {
     label: row.label,
     options,
     type: row.type,
+    validation: row.validation ?? undefined,
     value
   };
 }
 
 function isEmptyChecklistValue(value: unknown): boolean {
   return value === undefined || value === null || value === "";
+}
+
+function throwOnChecklistErrors(errors: readonly ChecklistValidationError[]): void {
+  const missingKeys = errors.filter((error) => error.reason === "required").map((error) => error.key);
+  if (missingKeys.length > 0) {
+    throw new BadRequestException(`Campos obrigatórios sem resposta: ${missingKeys.join(", ")}.`);
+  }
+
+  const invalidKeys = errors.filter((error) => error.reason === "format").map((error) => error.key);
+  if (invalidKeys.length > 0) {
+    throw new BadRequestException(`Campos com formato inválido: ${invalidKeys.join(", ")}.`);
+  }
 }
 
 function toSignatureItem(row: SignatureRow): WorkOrderSignature {
@@ -1234,7 +1368,7 @@ const workOrders: WorkOrderDetail[] = [
     ],
     checklist: [
       { answerKey: "pressao_entrada", completed: true, id: "chk-1", isRequired: true, label: "Verificar pressão de entrada", type: "pass_fail", value: true },
-      { answerKey: "leitura_eletrica", completed: false, id: "chk-2", isRequired: true, label: "Registrar leitura elétrica", type: "number", value: null },
+      { answerKey: "leitura_eletrica", completed: false, id: "chk-2", isRequired: true, label: "Registrar leitura elétrica", type: "number", validation: { max: 250, min: 0 }, value: null },
       { answerKey: "foto_painel", completed: false, id: "chk-3", isRequired: false, label: "Anexar foto do painel", type: "photo", value: null }
     ],
     customer: "Hospital Santa Clara",

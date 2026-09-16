@@ -142,19 +142,71 @@ export type ChecklistFieldType = (typeof checklistFieldTypes)[number];
 export interface ChecklistFieldRequirement {
   readonly key: string;
   readonly isRequired: boolean;
+  readonly type?: ChecklistFieldType;
+  readonly validation?: Record<string, unknown>;
+}
+
+export interface ChecklistValidationError {
+  readonly key: string;
+  readonly reason: "required" | "format";
 }
 
 export function validateChecklistAnswers(
   fields: readonly ChecklistFieldRequirement[],
   answers: Record<string, unknown>
-): readonly string[] {
-  return fields
-    .filter((field) => field.isRequired && isEmptyChecklistAnswer(answers[field.key]))
-    .map((field) => field.key);
+): readonly ChecklistValidationError[] {
+  const errors: ChecklistValidationError[] = [];
+
+  for (const field of fields) {
+    const value = answers[field.key];
+    const isEmpty = isEmptyChecklistAnswer(value);
+
+    if (field.isRequired && isEmpty) {
+      errors.push({ key: field.key, reason: "required" });
+      continue;
+    }
+
+    if (!isEmpty && !matchesChecklistFieldFormat(field, value)) {
+      errors.push({ key: field.key, reason: "format" });
+    }
+  }
+
+  return errors;
 }
 
 function isEmptyChecklistAnswer(value: unknown): boolean {
   return value === undefined || value === null || value === "";
+}
+
+/**
+ * Só cobre `min`/`max` (campos numéricos) e `pattern` (regex, campos de texto),
+ * que é o que `form_fields.validation` já suporta hoje. Outros tipos de campo
+ * não têm formato para validar além da presença, já checada acima.
+ */
+function matchesChecklistFieldFormat(field: ChecklistFieldRequirement, value: unknown): boolean {
+  const validation = field.validation;
+  if (!validation) {
+    return true;
+  }
+
+  if (field.type === "number") {
+    const numeric = typeof value === "number" ? value : Number(value);
+    if (Number.isNaN(numeric)) {
+      return false;
+    }
+
+    const min = typeof validation.min === "number" ? validation.min : undefined;
+    const max = typeof validation.max === "number" ? validation.max : undefined;
+
+    return (min === undefined || numeric >= min) && (max === undefined || numeric <= max);
+  }
+
+  const pattern = typeof validation.pattern === "string" ? validation.pattern : undefined;
+  if (pattern && typeof value === "string") {
+    return new RegExp(pattern).test(value);
+  }
+
+  return true;
 }
 
 export function calculateSlaComplianceRate(compliant: number, measurable: number): number {
