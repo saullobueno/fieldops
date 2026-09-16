@@ -214,9 +214,15 @@ export function createStorageAdapter(config: {
   readonly localRootDir: string;
   readonly upstashBlobToken?: string;
 }): StorageAdapter {
-  return config.upstashBlobToken
-    ? new UpstashBlobStorageAdapter(config.upstashBlobToken)
-    : new LocalStorageAdapter(config.localRootDir);
+  if (!config.upstashBlobToken) {
+    return new LocalStorageAdapter(config.localRootDir);
+  }
+
+  try {
+    return new UpstashBlobStorageAdapter(config.upstashBlobToken);
+  } catch {
+    return new LocalStorageAdapter(config.localRootDir);
+  }
 }
 
 export class MockCalendarAdapter implements CalendarAdapter {

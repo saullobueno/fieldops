@@ -132,6 +132,16 @@ describe("createStorageAdapter", () => {
     expect(adapter).toBeInstanceOf(UpstashBlobStorageAdapter);
     expect(adapter.provider).toBe("upstash-blob");
   });
+
+  it("recorre ao adaptador local quando o token do Upstash Blob é inválido", () => {
+    const adapter = createStorageAdapter({
+      localRootDir: "storage",
+      upstashBlobToken: "not-a-valid-upstash-blob-token"
+    });
+
+    expect(adapter).toBeInstanceOf(LocalStorageAdapter);
+    expect(adapter.provider).toBe("local-disk");
+  });
 });
 
 describe("UpstashBlobStorageAdapter", () => {
