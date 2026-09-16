@@ -6,7 +6,6 @@ Formato de cada item: origem, descrição, fase mestre onde é mais provável de
 
 ## Aberto
 
-38. **Documentação final de portfólio e operação demo** — origem: fechamento do projeto. README ainda descreve muito da fundação inicial e não resume o produto completo, credenciais demo, telas principais, decisões de arquitetura, screenshots e roteiro de deploy. Fechamento: fase final de apresentação/documentação.
 37. **Validação real de deploy e integrações configuradas** — origem: Fases 12/19/20/23/29/32. Ainda falta validar em ambiente real com variáveis finais: Neon, Upstash Redis, Upstash Blob, Groq, MapTiler/OSRM, Vercel/Render e CORS/URLs públicas. Fechamento: fase de release/deploy.
 36. **Hardening de sessão/autenticação** — origem: Fase 21. Sessão ainda fica em `localStorage`, token assinado não tem expiração/revogação prática e logout é apenas client-side. Fechamento: migrar para cookie `httpOnly`/`Secure`, expiração, refresh/revogação ou lista de sessões.
 35. **Ciclo de vida de usuários** — origem: Fase 21. Não há convite/cadastro de usuários, recuperação de senha, troca de senha ou gerenciamento operacional completo de acesso. Fechamento: fase de administração de usuários.
@@ -20,6 +19,8 @@ Formato de cada item: origem, descrição, fase mestre onde é mais provável de
 29. **Caminho real do provedor de IA nunca exercitado contra a rede** — origem: Fase 13, atualizado na Fase 19 (migração Anthropic → Groq). Não há `GROQ_API_KEY` configurada neste ambiente; o loop de tool-use real e a saída estruturada em JSON foram validados só por tipos, testes com o cliente indefinido (caminho heurístico) e revisão de código. Fechamento: validação manual pontual ao configurar a chave em um ambiente com acesso à internet.
 
 ## Fechado
+
+- **Documentação final de portfólio e operação demo** — origem: fechamento do projeto. Fechado na Fase 36: `README.md` reescrito com visão geral do produto, funcionalidades principais com screenshots reais (`docs/screenshots/`), tabela de stack, credenciais de login demo, variáveis de ambiente opcionais e o que cada uma habilita. Limitação restante: sem roteiro de deploy passo a passo (Neon/Upstash/Vercel/Render) validado na prática — depende do item 37 (validação real de deploy).
 
 - **Delete/soft delete administrativo** — origem: Fases 24/25. Fechado na Fase 35 para locais, contatos, contratos e ativos: `deleted_at` nas 4 tabelas, `CustomersService.delete*` faz soft-delete no Postgres (hard-delete no modo demo) e todas as leituras/edições passam a excluir registros removidos. Novos endpoints `DELETE /customers/:customerId/{sites,contacts,contracts,assets}/:id` e botão "Remover" em `/clientes`. Exclusão do cliente-raiz em si segue fora de escopo.
 - **Revogação antecipada de links assinados de anexos** — origem: Fase 7/15. Fechado na Fase 34: `attachments.revoked_at` + `AttachmentsService.revoke` marcam o anexo como revogado e registram auditoria; `createAccessTicket` passa a responder `410 Gone` para um link revogado mesmo dentro da validade. Novo `POST /work-orders/:id/attachments/:attachmentId/revoke` e botão "Revogar" em `/ordens`. Só funciona com Postgres configurado (sem paridade em modo demo).
