@@ -1417,5 +1417,27 @@ const workOrders: WorkOrderDetail[] = [
       { description: "Bruno iniciou deslocamento.", id: "evt-2", occurredAt: "2026-01-16T09:45:00.000Z", title: "A caminho" }
     ],
     title: "Falha em câmara fria"
+  },
+  {
+    assignedTechnicianUserId: null,
+    attachments: [],
+    checklist: [],
+    customer: "Condomínio Jardim Sul",
+    description: "Vazamento em tubulação com risco de infiltração nas áreas comuns.",
+    id: "demo-work-order-1003",
+    notes: [],
+    number: "WO-1003",
+    organizationId,
+    priority: "Média",
+    scheduledStartAt: "2026-01-16T13:00:00.000Z",
+    signatures: [],
+    site: "Condomínio Jardim Sul",
+    slaDueAt: "2026-01-16T16:00:00.000Z",
+    status: "scheduled",
+    teamId: null,
+    technician: null,
+    territoryId: "00000000-0000-4000-8000-000000000802",
+    timeline: [],
+    title: "Vazamento em tubulação"
   }
 ];

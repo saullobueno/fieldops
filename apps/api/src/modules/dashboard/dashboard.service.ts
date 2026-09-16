@@ -333,9 +333,9 @@ const dispatchPreview = [
 ] as const;
 
 const slaRisk = [
-  { customer: "Rede Mercado Norte", dueAt: "11:30", risk: "alto", workOrderNumber: "WO-1002" },
+  { customer: "Condomínio Jardim Sul", dueAt: "16:00", risk: "alto", workOrderNumber: "WO-1003" },
   { customer: "Hospital Santa Clara", dueAt: "13:10", risk: "medio", workOrderNumber: "WO-1001" },
-  { customer: "Condomínio Jardim Sul", dueAt: "15:00", risk: "medio", workOrderNumber: "WO-1008" }
+  { customer: "Rede Mercado Norte", dueAt: "11:30", risk: "medio", workOrderNumber: "WO-1002" }
 ] as const;
 
 const activeServicesMap = [
