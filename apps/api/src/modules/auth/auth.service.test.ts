@@ -1,10 +1,11 @@
-import { UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, UnauthorizedException } from "@nestjs/common";
 import { hashPassword } from "@fieldops/auth";
 import type pg from "pg";
 import { describe, expect, it, vi } from "vitest";
 
+import { demoUsers } from "../users/users.demo-store.js";
 import { AuthService } from "./auth.service.js";
-import { parseActorFromHeaders } from "./auth.guard.js";
+import { computeCredentialFingerprint, createActionToken, parseActorFromHeaders } from "./auth.guard.js";
 import type { AuthenticatedRequest } from "./auth.decorators.js";
 
 function bearerRequest(token: string): AuthenticatedRequest {
@@ -110,4 +111,121 @@ describe("AuthService (com Postgres configurado)", () => {
 
     expect(result.actor.id).toBe("00000000-0000-4000-8000-000000000013");
   });
+});
+
+describe("Ciclo de vida de senha (sem Postgres configurado)", () => {
+  const DEMO_ORGANIZATION_ID = "00000000-0000-4000-8000-000000000001";
+
+  function seedInvitedDemoUser(email: string): void {
+    demoUsers.push({
+      email,
+      id: `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: "Convidado de teste",
+      organizationId: DEMO_ORGANIZATION_ID,
+      passwordHash: null,
+      roleIds: ["00000000-0000-4000-8000-000000000103"],
+      status: "invited"
+    });
+  }
+
+  it("aceita um convite e devolve uma sessão válida", async () => {
+    const email = `convite-${Date.now()}@acmefield.example`;
+    seedInvitedDemoUser(email);
+    const service = new AuthService();
+
+    // Usuário ainda convidado (sem senha) não deve conseguir link de redefinição.
+    const { resetToken } = await service.forgotPassword(email);
+    expect(resetToken).toBeUndefined();
+
+    const inviteToken = createInviteTokenFor(email);
+    const result = await service.acceptInvite(inviteToken, "senha-nova-123");
+
+    expect(result.actor.id).toBe(demoUsers.find((user) => user.email === email)?.id);
+
+    // O mesmo token não pode ser reutilizado — o fingerprint mudou ao definir a senha.
+    await expect(service.acceptInvite(inviteToken, "outra-senha-123")).rejects.toThrow(BadRequestException);
+  });
+
+  it("permite redefinir a senha de um usuário ativo e depois logar com a nova senha", async () => {
+    const email = `reset-${Date.now()}@acmefield.example`;
+    demoUsers.push({
+      email,
+      id: `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: "Ativo de teste",
+      organizationId: DEMO_ORGANIZATION_ID,
+      passwordHash: await hashPassword("senha-antiga-123"),
+      roleIds: [],
+      status: "active"
+    });
+    const service = new AuthService();
+
+    const { resetToken } = await service.forgotPassword(email);
+    expect(resetToken).toBeDefined();
+
+    await service.resetPassword(resetToken!, "senha-nova-456");
+
+    const result = await service.login(email, "senha-nova-456");
+    expect(result.actor.organizationId).toBe(DEMO_ORGANIZATION_ID);
+    await expect(service.login(email, "senha-antiga-123")).rejects.toThrow(UnauthorizedException);
+  });
+
+  it("não gera token de redefinição para email desconhecido", async () => {
+    const service = new AuthService();
+
+    const { resetToken } = await service.forgotPassword("ninguem-nesse-teste@acmefield.example");
+
+    expect(resetToken).toBeUndefined();
+  });
+
+  it("troca a senha do próprio usuário autenticado", async () => {
+    const email = `troca-${Date.now()}@acmefield.example`;
+    const passwordHash = await hashPassword("senha-atual-123");
+    demoUsers.push({
+      email,
+      id: `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: "Troca de teste",
+      organizationId: DEMO_ORGANIZATION_ID,
+      passwordHash,
+      roleIds: [],
+      status: "active"
+    });
+    const service = new AuthService();
+    const actor = { ...(await service.login(email, "senha-atual-123")).actor };
+
+    await service.changePassword(actor, "senha-atual-123", "senha-troca-456");
+
+    await expect(service.login(email, "senha-atual-123")).rejects.toThrow(UnauthorizedException);
+    const result = await service.login(email, "senha-troca-456");
+    expect(result.actor.id).toBe(actor.id);
+  });
+
+  it("rejeita troca de senha com senha atual incorreta", async () => {
+    const email = `troca-errada-${Date.now()}@acmefield.example`;
+    demoUsers.push({
+      email,
+      id: `demo-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name: "Troca errada",
+      organizationId: DEMO_ORGANIZATION_ID,
+      passwordHash: await hashPassword("senha-certa-123"),
+      roleIds: [],
+      status: "active"
+    });
+    const service = new AuthService();
+    const actor = (await service.login(email, "senha-certa-123")).actor;
+
+    await expect(service.changePassword(actor, "senha-errada", "nova-senha-123")).rejects.toThrow(UnauthorizedException);
+  });
+
+  function createInviteTokenFor(email: string): string {
+    const user = demoUsers.find((candidate) => candidate.email === email);
+    if (!user) {
+      throw new Error("Usuário demo não encontrado no teste.");
+    }
+
+    return createActionToken("invite", {
+      fingerprint: computeCredentialFingerprint(user.id, user.passwordHash),
+      organizationId: user.organizationId,
+      userId: user.id
+    });
+  }
 });

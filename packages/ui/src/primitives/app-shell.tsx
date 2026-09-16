@@ -16,7 +16,9 @@ export const appShellNavItems: readonly AppShellNavItem[] = [
   { href: "/relatorios", label: "Relatórios" },
   { href: "/checklists", label: "Checklists" },
   { href: "/copilot", label: "Copiloto" },
-  { href: "/notificacoes", label: "Notificações" }
+  { href: "/notificacoes", label: "Notificações" },
+  { href: "/usuarios", label: "Usuários" },
+  { href: "/perfil", label: "Perfil" }
 ];
 
 export interface AppShellProps {

@@ -2,7 +2,14 @@ import { UnauthorizedException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 
 import type { AuthenticatedRequest } from "./auth.decorators.js";
-import { SESSION_COOKIE_NAME, createSignedActorToken, parseActorFromHeaders } from "./auth.guard.js";
+import {
+  SESSION_COOKIE_NAME,
+  computeCredentialFingerprint,
+  createActionToken,
+  createSignedActorToken,
+  parseActionToken,
+  parseActorFromHeaders
+} from "./auth.guard.js";
 
 describe("parseActorFromHeaders", () => {
   it("cria um ator autenticado a partir dos headers validados", () => {
@@ -103,5 +110,53 @@ describe("parseActorFromHeaders", () => {
     } as unknown as AuthenticatedRequest;
 
     expect(() => parseActorFromHeaders(request)).toThrow(UnauthorizedException);
+  });
+});
+
+describe("createActionToken / parseActionToken", () => {
+  it("aceita um token de convite com o fingerprint correto", () => {
+    process.env.FIELDOPS_SESSION_SECRET = "test-secret";
+    const fingerprint = computeCredentialFingerprint("user-1", null);
+    const token = createActionToken(
+      "invite",
+      { fingerprint, organizationId: "org-1", userId: "user-1" },
+      "test-secret"
+    );
+
+    expect(parseActionToken(token, "invite")).toEqual({
+      fingerprint,
+      organizationId: "org-1",
+      userId: "user-1"
+    });
+  });
+
+  it("rejeita um token usado para o propósito errado", () => {
+    process.env.FIELDOPS_SESSION_SECRET = "test-secret";
+    const token = createActionToken(
+      "invite",
+      { fingerprint: computeCredentialFingerprint("user-1", null), organizationId: "org-1", userId: "user-1" },
+      "test-secret"
+    );
+
+    expect(() => parseActionToken(token, "password-reset")).toThrow(UnauthorizedException);
+  });
+
+  it("rejeita um token de ação expirado", () => {
+    process.env.FIELDOPS_SESSION_SECRET = "test-secret";
+    const originalNow = Date.now;
+    Date.now = () => 0;
+    const token = createActionToken(
+      "password-reset",
+      { fingerprint: "abc", organizationId: "org-1", userId: "user-1" },
+      "test-secret"
+    );
+    Date.now = originalNow;
+
+    expect(() => parseActionToken(token, "password-reset")).toThrow(UnauthorizedException);
+  });
+
+  it("computa fingerprints diferentes para hashes de senha diferentes", () => {
+    expect(computeCredentialFingerprint("user-1", "hash-a")).not.toBe(computeCredentialFingerprint("user-1", "hash-b"));
+    expect(computeCredentialFingerprint("user-1", null)).not.toBe(computeCredentialFingerprint("user-1", "hash-a"));
   });
 });

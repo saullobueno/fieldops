@@ -180,6 +180,21 @@ export interface AdminCatalogSummary {
   readonly metrics: readonly AdminCatalogMetric[];
 }
 
+export type UserAccountStatus = "active" | "invited" | "disabled";
+
+export interface UserAccountRole {
+  readonly id: string;
+  readonly name: string;
+}
+
+export interface UserAccountSummary {
+  readonly id: string;
+  readonly email: string;
+  readonly name: string;
+  readonly status: UserAccountStatus;
+  readonly roles: readonly UserAccountRole[];
+}
+
 export type NotificationStatus = "unread" | "read" | "archived";
 export type NotificationChannel = "in_app" | "email" | "sms";
 

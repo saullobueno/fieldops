@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@fieldops/ui";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -91,6 +92,9 @@ export default function LoginPage(): React.ReactNode {
           <Button disabled={isSubmitting} type="submit" variant="primary">
             {isSubmitting ? "Entrando..." : "Entrar"}
           </Button>
+          <Link className="text-center text-sm text-[#0E5F4B] underline" href="/esqueci-senha">
+            Esqueceu a senha?
+          </Link>
         </form>
 
         <p className="mt-4 text-xs text-[#66736D]">

@@ -11,7 +11,7 @@ import {
   type AuthenticatedActor,
   type Permission
 } from "@fieldops/auth";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 import {
   REQUIRED_PERMISSIONS_KEY,
@@ -201,6 +201,87 @@ function signPayload(payload: string, secret: string): string {
 
 function authTokenSecret(): string {
   return process.env.FIELDOPS_SESSION_SECRET ?? "fieldops-demo-session-secret";
+}
+
+export type ActionTokenPurpose = "invite" | "password-reset";
+
+interface ActionTokenPayload {
+  readonly purpose: ActionTokenPurpose;
+  readonly userId: string;
+  readonly organizationId: string;
+  readonly fingerprint: string;
+  readonly exp: number;
+}
+
+const ACTION_TOKEN_TTL_MS: Record<ActionTokenPurpose, number> = {
+  invite: 7 * 24 * 60 * 60 * 1000,
+  "password-reset": 60 * 60 * 1000
+};
+
+export interface ActionTokenInput {
+  readonly userId: string;
+  readonly organizationId: string;
+  readonly fingerprint: string;
+}
+
+/**
+ * Token assinado e sem estado (sem tabela de tokens) para convite/redefinição
+ * de senha. `fingerprint` embute um hash do `password_hash` atual do usuário
+ * no momento da emissão — ao verificar, o chamador recalcula o fingerprint
+ * com o `password_hash` corrente do banco/demo e compara. Como definir uma
+ * senha nova sempre muda o `password_hash`, isso invalida automaticamente o
+ * token (e qualquer outro emitido antes) sem precisar persistir nem revogar
+ * nada explicitamente.
+ */
+export function createActionToken(
+  purpose: ActionTokenPurpose,
+  input: ActionTokenInput,
+  secret = authTokenSecret()
+): string {
+  const payload: ActionTokenPayload = { ...input, exp: Date.now() + ACTION_TOKEN_TTL_MS[purpose], purpose };
+  const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
+
+  return `${encoded}.${signPayload(encoded, secret)}`;
+}
+
+export function parseActionToken(token: string, purpose: ActionTokenPurpose): ActionTokenInput {
+  const [payload, signature] = token.split(".");
+
+  if (!payload || !signature) {
+    throw new UnauthorizedException("Token inválido.");
+  }
+
+  const expected = signPayload(payload, authTokenSecret());
+  const providedSignature = Buffer.from(signature);
+  const expectedSignature = Buffer.from(expected);
+
+  if (
+    providedSignature.length !== expectedSignature.length ||
+    !timingSafeEqual(providedSignature, expectedSignature)
+  ) {
+    throw new UnauthorizedException("Token inválido.");
+  }
+
+  let parsed: Partial<ActionTokenPayload>;
+  try {
+    parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Partial<ActionTokenPayload>;
+  } catch {
+    throw new UnauthorizedException("Token inválido.");
+  }
+
+  if (parsed.purpose !== purpose || !parsed.userId || !parsed.organizationId || !parsed.fingerprint) {
+    throw new UnauthorizedException("Token inválido.");
+  }
+
+  if (typeof parsed.exp !== "number" || Date.now() > parsed.exp) {
+    throw new UnauthorizedException("Token expirado.");
+  }
+
+  return { fingerprint: parsed.fingerprint, organizationId: parsed.organizationId, userId: parsed.userId };
+}
+
+export function computeCredentialFingerprint(userId: string, passwordHash: string | null): string {
+  return createHash("sha256").update(`${userId}:${passwordHash ?? "invited"}`).digest("hex").slice(0, 16);
 }
 
 function parseListHeader(value: string | undefined): readonly string[] {
