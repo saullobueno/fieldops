@@ -29,6 +29,13 @@
       "when": 1789506536396,
       "tag": "0003_wise_ultimates",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789524823561,
+      "tag": "0004_slimy_winter_soldier",
+      "breakpoints": true
     }
   ]
 }

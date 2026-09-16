@@ -124,6 +124,7 @@ export interface WorkOrderAttachment {
   readonly uploadedAt: string;
   readonly signedUrl?: string;
   readonly signedUrlExpiresAt?: string;
+  readonly revokedAt: string | null;
 }
 
 export interface WorkOrderNote {

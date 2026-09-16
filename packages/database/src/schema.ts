@@ -78,7 +78,8 @@ export const auditActionEnum = pgEnum("audit_action", [
   "reschedule",
   "status_change",
   "permission_change",
-  "export"
+  "export",
+  "revoke"
 ]);
 export const syncOperationStatusEnum = pgEnum("sync_operation_status", [
   "queued",
@@ -435,6 +436,7 @@ export const attachments = pgTable("attachments", {
   storageKey: text("storage_key").notNull(),
   byteSize: integer("byte_size").notNull(),
   checksum: text("checksum"),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
   ...timestamps
 }, (table) => [
   uniqueIndex("attachments_storage_key_idx").on(table.storageKey),

@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AttachmentsService, signAttachment } from "./attachments.service.js";
 
+const TEST_UPSTASH_BLOB_TOKEN = "AgABAAEBYnBo";
+
 describe("AttachmentsService", () => {
   it("valida uma URL assinada ainda vigente", async () => {
     const service = new AttachmentsService();
@@ -54,6 +56,18 @@ describe("AttachmentsService", () => {
       storageKey
     });
   });
+
+  it("recusa revogar anexo sem banco de dados configurado", async () => {
+    const service = new AttachmentsService();
+
+    await expect(
+      service.revoke({
+        actorUserId: "00000000-0000-4000-8000-000000000011",
+        attachmentId: "att-1",
+        organizationId: "00000000-0000-4000-8000-000000000001"
+      })
+    ).rejects.toThrow("banco de dados configurado");
+  });
 });
 
 describe("AttachmentsService.upload", () => {
@@ -69,7 +83,7 @@ describe("AttachmentsService.upload", () => {
     rmSync(rootDir, { force: true, recursive: true });
   });
 
-  it("grava o arquivo no storage local (sem R2 configurado) e retorna chave/tamanho", async () => {
+  it("grava o arquivo no storage local (sem Upstash Blob configurado) e retorna chave/tamanho", async () => {
     const service = new AttachmentsService();
     const content = "conteudo-do-anexo";
 
@@ -103,16 +117,13 @@ describe("AttachmentsService.upload", () => {
   });
 });
 
-describe("AttachmentsService.createAccessTicket (com R2 configurado)", () => {
+describe("AttachmentsService.createAccessTicket (com Upstash Blob configurado)", () => {
   let rootDir: string;
 
   beforeEach(() => {
-    rootDir = mkdtempSync(path.join(tmpdir(), "fieldops-attachments-r2-test-"));
+    rootDir = mkdtempSync(path.join(tmpdir(), "fieldops-attachments-upstash-test-"));
     vi.stubEnv("ATTACHMENT_STORAGE_ROOT", rootDir);
-    vi.stubEnv("R2_ACCOUNT_ID", "test-account");
-    vi.stubEnv("R2_ACCESS_KEY_ID", "test-access-key");
-    vi.stubEnv("R2_SECRET_ACCESS_KEY", "test-secret-key");
-    vi.stubEnv("R2_BUCKET_NAME", "test-bucket");
+    vi.stubEnv("UPSTASH_BLOB_TOKEN", TEST_UPSTASH_BLOB_TOKEN);
   });
 
   afterEach(() => {
@@ -120,7 +131,7 @@ describe("AttachmentsService.createAccessTicket (com R2 configurado)", () => {
     rmSync(rootDir, { force: true, recursive: true });
   });
 
-  it("redireciona para uma URL assinada do R2 quando o arquivo não existe localmente", async () => {
+  it("mantém o ticket assinado da API quando a URL remota não pode ser gerada", async () => {
     const service = new AttachmentsService();
     const storageKey = "work-orders/wo-9001/foto-nao-local.jpg";
     const expires = Math.floor((Date.now() + 60_000) / 1000).toString();
@@ -131,9 +142,7 @@ describe("AttachmentsService.createAccessTicket (com R2 configurado)", () => {
       storageKey
     });
 
-    expect(ticket.downloadMode).toBe("redirect");
-    expect(ticket.remoteUrl?.startsWith("https://")).toBe(true);
-    expect(ticket.remoteUrl).toContain("test-bucket");
-    expect(ticket.remoteUrl).toContain("foto-nao-local.jpg");
+    expect(ticket.downloadMode).toBe("signed-url");
+    expect(ticket.remoteUrl).toBeUndefined();
   });
 });

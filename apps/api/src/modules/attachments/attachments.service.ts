@@ -2,7 +2,7 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { BadRequestException, ForbiddenException, GoneException, Inject, Injectable, Optional } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, GoneException, Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { createStorageAdapter, type StorageAdapter } from "@fieldops/integrations";
 import type pg from "pg";
 
@@ -49,6 +49,7 @@ interface AttachmentRow {
   readonly id: string;
   readonly mime_type: string;
   readonly organization_id: string;
+  readonly revoked_at: Date | string | null;
 }
 
 @Injectable()
@@ -60,17 +61,11 @@ export class AttachmentsService {
   ) {
     // Mesma lição da Fase 12 (MapsService): lê só as credenciais que este
     // serviço precisa, sem passar por `parseServerEnv` completo.
-    const r2AccountId = process.env.R2_ACCOUNT_ID;
-    const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID;
-    const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
-    const r2BucketName = process.env.R2_BUCKET_NAME;
+    const upstashBlobToken = process.env.UPSTASH_BLOB_TOKEN;
 
     this.storageAdapter = createStorageAdapter({
       localRootDir: process.env.ATTACHMENT_STORAGE_ROOT ?? "storage",
-      r2:
-        r2AccountId && r2AccessKeyId && r2SecretAccessKey && r2BucketName
-          ? { accessKeyId: r2AccessKeyId, accountId: r2AccountId, bucket: r2BucketName, secretAccessKey: r2SecretAccessKey }
-          : undefined
+      upstashBlobToken
     });
   }
 
@@ -107,6 +102,10 @@ export class AttachmentsService {
     }
 
     const attachment = await this.findAttachment(input.storageKey);
+    if (attachment?.revoked_at) {
+      throw new GoneException("Link revogado.");
+    }
+
     const localPath = resolveStoragePath(input.storageKey);
     const remoteUrl = localPath
       ? undefined
@@ -129,6 +128,31 @@ export class AttachmentsService {
     };
   }
 
+  async revoke(input: { readonly attachmentId: string; readonly organizationId: string; readonly actorUserId: string }): Promise<void> {
+    if (!this.postgresPool) {
+      throw new BadRequestException("Revogação de anexos requer um banco de dados configurado.");
+    }
+
+    const result = await this.postgresPool.query<{ storage_key: string }>(
+      `update attachments
+       set revoked_at = now()
+       where id = $1 and organization_id = $2 and revoked_at is null
+       returning storage_key`,
+      [input.attachmentId, input.organizationId]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      throw new NotFoundException("Anexo não encontrado ou já revogado.");
+    }
+
+    await this.postgresPool.query(
+      `insert into audit_logs (organization_id, actor_user_id, action, resource_type, resource_id, metadata)
+       values ($1, $2, 'revoke', 'attachment', $3, $4::jsonb)`,
+      [input.organizationId, input.actorUserId, input.attachmentId, JSON.stringify({ source: "attachments-api" })]
+    );
+  }
+
   private async findAttachment(storageKey: string): Promise<AttachmentRow | undefined> {
     if (!this.postgresPool) {
       return undefined;
@@ -136,7 +160,7 @@ export class AttachmentsService {
 
     try {
       const result = await this.postgresPool.query<AttachmentRow>(
-        `select id, organization_id, file_name, mime_type, byte_size
+        `select id, organization_id, file_name, mime_type, byte_size, revoked_at
          from attachments
          where storage_key = $1
          limit 1`,

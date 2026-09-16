@@ -249,6 +249,13 @@ function WorkOrderDetailPanel({ id }: { id: string }): React.ReactNode {
       await queryClient.invalidateQueries({ queryKey: ["work-order-audit", id] });
     }
   });
+  const revokeAttachmentMutation = useMutation({
+    mutationFn: (attachmentId: string) => revokeWorkOrderAttachment(id, attachmentId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["work-order-detail", id] });
+      await queryClient.invalidateQueries({ queryKey: ["work-order-audit", id] });
+    }
+  });
 
   if (detailQuery.isLoading) {
     return <Panel title="Detalhe"><LoadingState message="Carregando ordem selecionada..." /></Panel>;
@@ -324,18 +331,33 @@ function WorkOrderDetailPanel({ id }: { id: string }): React.ReactNode {
             <div className="flex items-center justify-between gap-3 rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm" key={item.id}>
               <div>
                 <p className="font-medium">{item.fileName}</p>
-                <p className="text-xs text-[#66736D]">{item.kind} · expira {item.signedUrlExpiresAt ? formatHour(item.signedUrlExpiresAt) : "--:--"}</p>
+                <p className="text-xs text-[#66736D]">
+                  {item.revokedAt
+                    ? `Revogado em ${formatHour(item.revokedAt)}`
+                    : `${item.kind} · expira ${item.signedUrlExpiresAt ? formatHour(item.signedUrlExpiresAt) : "--:--"}`}
+                </p>
               </div>
-              {item.signedUrl ? (
-                <a
-                  className="rounded-md border border-[#C7D0CB] bg-white px-3 py-2 text-sm font-medium text-[#151A18] hover:bg-[#F4F6F5]"
-                  href={`${apiBaseUrl()}${item.signedUrl}`}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Abrir
-                </a>
-              ) : null}
+              <div className="flex gap-2">
+                {item.signedUrl ? (
+                  <a
+                    className="rounded-md border border-[#C7D0CB] bg-white px-3 py-2 text-sm font-medium text-[#151A18] hover:bg-[#F4F6F5]"
+                    href={`${apiBaseUrl()}${item.signedUrl}`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Abrir
+                  </a>
+                ) : null}
+                {!item.revokedAt ? (
+                  <Button
+                    disabled={revokeAttachmentMutation.isPending}
+                    onClick={() => revokeAttachmentMutation.mutate(item.id)}
+                    variant="secondary"
+                  >
+                    Revogar
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ))}
           <form
@@ -848,6 +870,18 @@ async function uploadWorkOrderAttachment(
 
   if (!response.ok) {
     throw new Error(await extractErrorMessage(response, "Falha ao enviar anexo."));
+  }
+
+  return response.json() as Promise<WorkOrderDetail>;
+}
+
+async function revokeWorkOrderAttachment(id: string, attachmentId: string): Promise<WorkOrderDetail> {
+  const response = await apiFetch(`/work-orders/${id}/attachments/${attachmentId}/revoke`, {
+    method: "POST"
+  });
+
+  if (!response.ok) {
+    throw new Error(await extractErrorMessage(response, "Falha ao revogar anexo."));
   }
 
   return response.json() as Promise<WorkOrderDetail>;

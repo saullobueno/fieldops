@@ -312,6 +312,26 @@ export class WorkOrdersController {
       storageKey: uploaded.storageKey
     });
   }
+
+  @Post(":id/attachments/:attachmentId/revoke")
+  @RequirePermissions("work_order:update")
+  async revokeAttachment(
+    @CurrentActor() actor: AuthenticatedActor | undefined,
+    @Param("id") id: string,
+    @Param("attachmentId") attachmentId: string
+  ): Promise<WorkOrderDetail> {
+    const currentActor = requireActor(actor);
+    const detail = await this.workOrdersService.getById(id, currentActor.organizationId);
+    assertObjectPermission(currentActor, "work_order:update", detail);
+
+    await this.attachmentsService.revoke({
+      actorUserId: currentActor.id,
+      attachmentId,
+      organizationId: currentActor.organizationId
+    });
+
+    return this.workOrdersService.getById(id, currentActor.organizationId);
+  }
 }
 
 function requireActor(actor: AuthenticatedActor | undefined): AuthenticatedActor {

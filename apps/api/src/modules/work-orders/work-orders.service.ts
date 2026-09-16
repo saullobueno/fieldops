@@ -112,6 +112,7 @@ interface AttachmentRow {
   readonly file_name: string;
   readonly storage_key: string;
   readonly created_at: Date | string;
+  readonly revoked_at: Date | string | null;
 }
 
 interface ChecklistRow {
@@ -407,7 +408,7 @@ export class WorkOrdersService {
         [id, organizationId]
       ),
       this.postgresPool!.query<AttachmentRow>(
-        `select id, kind, file_name, storage_key, created_at
+        `select id, kind, file_name, storage_key, created_at, revoked_at
          from attachments
          where work_order_id = $1 and organization_id = $2
          order by created_at desc`,
@@ -1154,6 +1155,7 @@ function addMemoryAttachment(input: WorkOrderAttachmentInput): WorkOrderDetail {
         fileName: input.fileName,
         id: `attachment-${current.attachments.length + 1}`,
         kind: input.kind,
+        revokedAt: null,
         signedUrl: signAttachmentUrl(input.storageKey, expiresAt),
         signedUrlExpiresAt: expiresAt.toISOString(),
         uploadedAt: now
@@ -1268,13 +1270,15 @@ function eventDescription(row: EventRow, actor: string, from: string | undefined
 
 function toSignedAttachment(row: AttachmentRow) {
   const expiresAt = new Date(Date.now() + 15 * 60_000);
+  const isRevoked = Boolean(row.revoked_at);
 
   return {
     fileName: row.file_name,
     id: row.id,
     kind: row.kind,
-    signedUrl: signAttachmentUrl(row.storage_key, expiresAt),
-    signedUrlExpiresAt: expiresAt.toISOString(),
+    revokedAt: row.revoked_at ? toIso(row.revoked_at) : null,
+    signedUrl: isRevoked ? undefined : signAttachmentUrl(row.storage_key, expiresAt),
+    signedUrlExpiresAt: isRevoked ? undefined : expiresAt.toISOString(),
     uploadedAt: toIso(row.created_at)
   };
 }
@@ -1361,6 +1365,7 @@ const workOrders: WorkOrderDetail[] = [
         fileName: "foto-bomba-a.jpg",
         id: "att-1",
         kind: "foto",
+        revokedAt: null,
         signedUrl: signAttachmentUrl("demo/work-orders/WO-1001/foto-bomba-a.jpg", new Date("2026-10-09T10:35:00.000Z")),
         signedUrlExpiresAt: "2026-10-09T10:35:00.000Z",
         uploadedAt: "2026-01-16T10:20:00.000Z"
