@@ -173,5 +173,21 @@ describe("CustomersService", () => {
       organizationId
     });
     expect(withUpdatedAsset.assets[0]?.name).toBe("Gerador principal revisado");
+
+    const withoutAsset = await service.deleteAsset({ customerId: customer.id, id: asset.id, organizationId });
+    expect(withoutAsset.assets).toHaveLength(0);
+
+    const withoutContract = await service.deleteContract({ customerId: customer.id, id: contract.id, organizationId });
+    expect(withoutContract.contracts).toHaveLength(0);
+
+    const withoutContact = await service.deleteContact({ customerId: customer.id, id: contact.id, organizationId });
+    expect(withoutContact.contacts).toHaveLength(0);
+
+    const withoutSite = await service.deleteSite({ customerId: customer.id, id: site.id, organizationId });
+    expect(withoutSite.sites).toHaveLength(0);
+
+    await expect(service.deleteSite({ customerId: customer.id, id: site.id, organizationId })).rejects.toThrow(
+      "não encontrado"
+    );
   });
 });

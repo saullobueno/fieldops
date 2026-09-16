@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Inject, Param, Patch, Post, Query, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, UnauthorizedException } from "@nestjs/common";
 import type { AuthenticatedActor } from "@fieldops/auth";
 import type { CustomerDetail, CustomerListResponse, NamedOption } from "@fieldops/types";
 import { z } from "zod";
@@ -206,6 +206,17 @@ export class CustomersController {
     });
   }
 
+  @Delete(":customerId/sites/:siteId")
+  @RequirePermissions("customer:manage")
+  async deleteSite(
+    @CurrentActor() actor: AuthenticatedActor | undefined,
+    @Param("customerId") customerId: string,
+    @Param("siteId") siteId: string
+  ): Promise<CustomerDetail> {
+    const currentActor = requireActor(actor);
+    return this.customersService.deleteSite({ customerId, id: siteId, organizationId: currentActor.organizationId });
+  }
+
   @Post(":customerId/contacts")
   @RequirePermissions("customer:manage")
   async createContact(
@@ -256,6 +267,17 @@ export class CustomersController {
     });
   }
 
+  @Delete(":customerId/contacts/:contactId")
+  @RequirePermissions("customer:manage")
+  async deleteContact(
+    @CurrentActor() actor: AuthenticatedActor | undefined,
+    @Param("customerId") customerId: string,
+    @Param("contactId") contactId: string
+  ): Promise<CustomerDetail> {
+    const currentActor = requireActor(actor);
+    return this.customersService.deleteContact({ customerId, id: contactId, organizationId: currentActor.organizationId });
+  }
+
   @Post(":customerId/contracts")
   @RequirePermissions("customer:manage")
   async createContract(
@@ -302,6 +324,17 @@ export class CustomersController {
       organizationId: currentActor.organizationId,
       startsOn: parsedBody.data.startsOn
     });
+  }
+
+  @Delete(":customerId/contracts/:contractId")
+  @RequirePermissions("customer:manage")
+  async deleteContract(
+    @CurrentActor() actor: AuthenticatedActor | undefined,
+    @Param("customerId") customerId: string,
+    @Param("contractId") contractId: string
+  ): Promise<CustomerDetail> {
+    const currentActor = requireActor(actor);
+    return this.customersService.deleteContract({ customerId, id: contractId, organizationId: currentActor.organizationId });
   }
 
   @Post(":customerId/assets")
@@ -354,6 +387,17 @@ export class CustomersController {
       siteId: parsedBody.data.siteId,
       warrantyExpiresOn: parsedBody.data.warrantyExpiresOn ?? null
     });
+  }
+
+  @Delete(":customerId/assets/:assetId")
+  @RequirePermissions("asset:manage")
+  async deleteAsset(
+    @CurrentActor() actor: AuthenticatedActor | undefined,
+    @Param("customerId") customerId: string,
+    @Param("assetId") assetId: string
+  ): Promise<CustomerDetail> {
+    const currentActor = requireActor(actor);
+    return this.customersService.deleteAsset({ customerId, id: assetId, organizationId: currentActor.organizationId });
   }
 }
 

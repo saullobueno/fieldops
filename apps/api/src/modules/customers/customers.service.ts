@@ -46,6 +46,12 @@ export interface SiteUpdateInput extends SiteWriteInput {
   readonly id: string;
 }
 
+export interface CustomerEntityDeleteInput {
+  readonly id: string;
+  readonly customerId: string;
+  readonly organizationId: string;
+}
+
 export interface ContactWriteInput {
   readonly organizationId: string;
   readonly customerId: string;
@@ -358,6 +364,82 @@ export class CustomersService {
     }
   }
 
+  async deleteSite(input: CustomerEntityDeleteInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      deleteSiteInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+
+    try {
+      await this.deleteSiteInDatabase(input);
+      return await this.getFromDatabase(input.customerId, input.organizationId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      deleteSiteInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+  }
+
+  async deleteContact(input: CustomerEntityDeleteInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      deleteContactInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+
+    try {
+      await this.deleteContactInDatabase(input);
+      return await this.getFromDatabase(input.customerId, input.organizationId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      deleteContactInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+  }
+
+  async deleteContract(input: CustomerEntityDeleteInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      deleteContractInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+
+    try {
+      await this.deleteContractInDatabase(input);
+      return await this.getFromDatabase(input.customerId, input.organizationId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      deleteContractInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+  }
+
+  async deleteAsset(input: CustomerEntityDeleteInput): Promise<CustomerDetail> {
+    if (!this.postgresPool) {
+      deleteAssetInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+
+    try {
+      await this.deleteAssetInDatabase(input);
+      return await this.getFromDatabase(input.customerId, input.organizationId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      deleteAssetInMemory(input);
+      return getFromMemory(input.customerId, input.organizationId);
+    }
+  }
+
   private async createInDatabase(input: CustomerWriteInput): Promise<string> {
     const result = await this.postgresPool!.query<{ id: string }>(
       `insert into customers (organization_id, name, external_ref, notes)
@@ -422,7 +504,7 @@ export class CustomersService {
            longitude = $13,
            access_instructions = $14,
            updated_at = now()
-       where id = $1 and organization_id = $2 and customer_id = $3`,
+       where id = $1 and organization_id = $2 and customer_id = $3 and deleted_at is null`,
       [
         input.id,
         input.organizationId,
@@ -458,7 +540,7 @@ export class CustomersService {
     const result = await this.postgresPool!.query(
       `update contacts
        set name = $4, email = $5, phone = $6, title = $7, updated_at = now()
-       where id = $1 and organization_id = $2 and customer_id = $3`,
+       where id = $1 and organization_id = $2 and customer_id = $3 and deleted_at is null`,
       [input.id, input.organizationId, input.customerId, input.name, input.email, input.phone, input.title]
     );
 
@@ -479,7 +561,7 @@ export class CustomersService {
     const result = await this.postgresPool!.query(
       `update contracts
        set name = $4, starts_on = $5, ends_on = $6, updated_at = now()
-       where id = $1 and organization_id = $2 and customer_id = $3`,
+       where id = $1 and organization_id = $2 and customer_id = $3 and deleted_at is null`,
       [input.id, input.organizationId, input.customerId, input.name, input.startsOn, input.endsOn]
     );
 
@@ -495,7 +577,7 @@ export class CustomersService {
        )
        select $1, $2, s.id, $4, $5, $6, $7
        from sites s
-       where s.id = $3 and s.organization_id = $1 and s.customer_id = $2`,
+       where s.id = $3 and s.organization_id = $1 and s.customer_id = $2 and s.deleted_at is null`,
       [
         input.organizationId,
         input.customerId,
@@ -524,9 +606,10 @@ export class CustomersService {
        where id = $1
          and organization_id = $2
          and customer_id = $3
+         and deleted_at is null
          and exists (
            select 1 from sites s
-           where s.id = $4 and s.organization_id = $2 and s.customer_id = $3
+           where s.id = $4 and s.organization_id = $2 and s.customer_id = $3 and s.deleted_at is null
          )`,
       [
         input.id,
@@ -545,6 +628,54 @@ export class CustomersService {
     }
   }
 
+  private async deleteSiteInDatabase(input: CustomerEntityDeleteInput): Promise<void> {
+    const result = await this.postgresPool!.query(
+      `update sites set deleted_at = now(), updated_at = now()
+       where id = $1 and organization_id = $2 and customer_id = $3 and deleted_at is null`,
+      [input.id, input.organizationId, input.customerId]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException("Local não encontrado.");
+    }
+  }
+
+  private async deleteContactInDatabase(input: CustomerEntityDeleteInput): Promise<void> {
+    const result = await this.postgresPool!.query(
+      `update contacts set deleted_at = now(), updated_at = now()
+       where id = $1 and organization_id = $2 and customer_id = $3 and deleted_at is null`,
+      [input.id, input.organizationId, input.customerId]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException("Contato não encontrado.");
+    }
+  }
+
+  private async deleteContractInDatabase(input: CustomerEntityDeleteInput): Promise<void> {
+    const result = await this.postgresPool!.query(
+      `update contracts set deleted_at = now(), updated_at = now()
+       where id = $1 and organization_id = $2 and customer_id = $3 and deleted_at is null`,
+      [input.id, input.organizationId, input.customerId]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException("Contrato não encontrado.");
+    }
+  }
+
+  private async deleteAssetInDatabase(input: CustomerEntityDeleteInput): Promise<void> {
+    const result = await this.postgresPool!.query(
+      `update assets set deleted_at = now(), updated_at = now()
+       where id = $1 and organization_id = $2 and customer_id = $3 and deleted_at is null`,
+      [input.id, input.organizationId, input.customerId]
+    );
+
+    if (result.rowCount === 0) {
+      throw new NotFoundException("Ativo não encontrado.");
+    }
+  }
+
   private async listFromDatabase(filter: CustomerListFilter): Promise<CustomerListResponse> {
     const values: unknown[] = [filter.organizationId];
     const where = ["c.organization_id = $1"];
@@ -556,12 +687,14 @@ export class CustomersService {
 
     if (filter.territoryId?.trim()) {
       values.push(filter.territoryId.trim());
-      where.push(`exists (select 1 from sites s2 where s2.customer_id = c.id and s2.territory_id = $${values.length})`);
+      where.push(
+        `exists (select 1 from sites s2 where s2.customer_id = c.id and s2.deleted_at is null and s2.territory_id = $${values.length})`
+      );
     }
 
     if (filter.activeContract) {
       where.push(
-        `exists (select 1 from contracts ct where ct.customer_id = c.id and ct.starts_on <= current_date and (ct.ends_on is null or ct.ends_on >= current_date))`
+        `exists (select 1 from contracts ct where ct.customer_id = c.id and ct.deleted_at is null and ct.starts_on <= current_date and (ct.ends_on is null or ct.ends_on >= current_date))`
       );
     }
 
@@ -580,7 +713,7 @@ export class CustomersService {
          count(distinct s.id)::text as sites_count,
          count(distinct wo.id) filter (where wo.status not in ('completed', 'cancelled'))::text as open_work_orders_count
        from customers c
-       left join sites s on s.customer_id = c.id
+       left join sites s on s.customer_id = c.id and s.deleted_at is null
        left join work_orders wo on wo.customer_id = c.id
        where ${whereSql}
        group by c.id
@@ -617,21 +750,21 @@ export class CustomersService {
            id, name, address_line_1, address_line_2, city, state, postal_code, country,
            territory_id, latitude::text, longitude::text, access_instructions
          from sites
-         where customer_id = $1 and organization_id = $2
+         where customer_id = $1 and organization_id = $2 and deleted_at is null
          order by name asc`,
         [id, organizationId]
       ),
       this.postgresPool!.query<ContactRow>(
         `select id, name, email, phone, title
          from contacts
-         where customer_id = $1 and organization_id = $2
+         where customer_id = $1 and organization_id = $2 and deleted_at is null
          order by name asc`,
         [id, organizationId]
       ),
       this.postgresPool!.query<ContractRow>(
         `select id, name, starts_on, ends_on
          from contracts
-         where customer_id = $1 and organization_id = $2
+         where customer_id = $1 and organization_id = $2 and deleted_at is null
          order by starts_on desc`,
         [id, organizationId]
       ),
@@ -639,7 +772,7 @@ export class CustomersService {
         `select a.id, a.name, a.model, a.serial_number, a.warranty_expires_on, a.site_id, s.name as site_name
          from assets a
          join sites s on s.id = a.site_id
-         where a.customer_id = $1 and a.organization_id = $2
+         where a.customer_id = $1 and a.organization_id = $2 and a.deleted_at is null and s.deleted_at is null
          order by a.name asc`,
         [id, organizationId]
       ),
@@ -1075,6 +1208,43 @@ function updateAssetInMemory(input: AssetUpdateInput): void {
   };
 
   replaceCustomer({ ...customer, assets });
+}
+
+function deleteSiteInMemory(input: CustomerEntityDeleteInput): void {
+  const customer = getFromMemory(input.customerId, input.organizationId);
+  if (!customer.sites.some((site) => site.id === input.id)) {
+    throw new NotFoundException("Local não encontrado.");
+  }
+
+  const sites = customer.sites.filter((site) => site.id !== input.id);
+  replaceCustomer({ ...customer, sites, sitesCount: sites.length });
+}
+
+function deleteContactInMemory(input: CustomerEntityDeleteInput): void {
+  const customer = getFromMemory(input.customerId, input.organizationId);
+  if (!customer.contacts.some((contact) => contact.id === input.id)) {
+    throw new NotFoundException("Contato não encontrado.");
+  }
+
+  replaceCustomer({ ...customer, contacts: customer.contacts.filter((contact) => contact.id !== input.id) });
+}
+
+function deleteContractInMemory(input: CustomerEntityDeleteInput): void {
+  const customer = getFromMemory(input.customerId, input.organizationId);
+  if (!customer.contracts.some((contract) => contract.id === input.id)) {
+    throw new NotFoundException("Contrato não encontrado.");
+  }
+
+  replaceCustomer({ ...customer, contracts: customer.contracts.filter((contract) => contract.id !== input.id) });
+}
+
+function deleteAssetInMemory(input: CustomerEntityDeleteInput): void {
+  const customer = getFromMemory(input.customerId, input.organizationId);
+  if (!customer.assets.some((asset) => asset.id === input.id)) {
+    throw new NotFoundException("Ativo não encontrado.");
+  }
+
+  replaceCustomer({ ...customer, assets: customer.assets.filter((asset) => asset.id !== input.id) });
 }
 
 function replaceCustomer(updated: CustomerDetail): void {

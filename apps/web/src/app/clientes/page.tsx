@@ -573,6 +573,10 @@ function CustomerDetailPanel({
   const updateContractMutation = useCustomerEntityMutation(customerId, "contract", "update", queryClient, () => setActiveForm(null));
   const createAssetMutation = useCustomerEntityMutation(customerId, "asset", "create", queryClient, () => setActiveForm(null));
   const updateAssetMutation = useCustomerEntityMutation(customerId, "asset", "update", queryClient, () => setActiveForm(null));
+  const deleteSiteMutation = useCustomerEntityDeleteMutation(customerId, "site", queryClient);
+  const deleteContactMutation = useCustomerEntityDeleteMutation(customerId, "contact", queryClient);
+  const deleteContractMutation = useCustomerEntityDeleteMutation(customerId, "contract", queryClient);
+  const deleteAssetMutation = useCustomerEntityDeleteMutation(customerId, "asset", queryClient);
 
   if (detailQuery.isLoading) {
     return <Panel title="Detalhe"><LoadingState message="Carregando cliente selecionado..." /></Panel>;
@@ -636,7 +640,19 @@ function CustomerDetailPanel({
             <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm" key={site.id}>
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium">{site.name}</p>
-                <Button onClick={() => setActiveForm(activeForm === `site:${site.id}` ? null : `site:${site.id}`)} variant="secondary">Editar</Button>
+                <div className="flex gap-2">
+                  <Button onClick={() => setActiveForm(activeForm === `site:${site.id}` ? null : `site:${site.id}`)} variant="secondary">Editar</Button>
+                  <Button
+                    onClick={() => {
+                      if (window.confirm(`Remover o local "${site.name}"?`)) {
+                        deleteSiteMutation.mutate(site.id);
+                      }
+                    }}
+                    variant="secondary"
+                  >
+                    Remover
+                  </Button>
+                </div>
               </div>
               <p className="text-[#66736D]">{site.addressLine1} · {site.city}/{site.state}</p>
               {activeForm === `site:${site.id}` ? (
@@ -669,7 +685,19 @@ function CustomerDetailPanel({
             <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm" key={contact.id}>
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium">{contact.name}</p>
-                <Button onClick={() => setActiveForm(activeForm === `contact:${contact.id}` ? null : `contact:${contact.id}`)} variant="secondary">Editar</Button>
+                <div className="flex gap-2">
+                  <Button onClick={() => setActiveForm(activeForm === `contact:${contact.id}` ? null : `contact:${contact.id}`)} variant="secondary">Editar</Button>
+                  <Button
+                    onClick={() => {
+                      if (window.confirm(`Remover o contato "${contact.name}"?`)) {
+                        deleteContactMutation.mutate(contact.id);
+                      }
+                    }}
+                    variant="secondary"
+                  >
+                    Remover
+                  </Button>
+                </div>
               </div>
               <p className="text-[#66736D]">{contact.title ?? "Sem cargo"} · {contact.email ?? "sem e-mail"} · {contact.phone ?? "sem telefone"}</p>
               {activeForm === `contact:${contact.id}` ? (
@@ -702,7 +730,19 @@ function CustomerDetailPanel({
             <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm" key={contract.id}>
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium">{contract.name}</p>
-                <Button onClick={() => setActiveForm(activeForm === `contract:${contract.id}` ? null : `contract:${contract.id}`)} variant="secondary">Editar</Button>
+                <div className="flex gap-2">
+                  <Button onClick={() => setActiveForm(activeForm === `contract:${contract.id}` ? null : `contract:${contract.id}`)} variant="secondary">Editar</Button>
+                  <Button
+                    onClick={() => {
+                      if (window.confirm(`Remover o contrato "${contract.name}"?`)) {
+                        deleteContractMutation.mutate(contract.id);
+                      }
+                    }}
+                    variant="secondary"
+                  >
+                    Remover
+                  </Button>
+                </div>
               </div>
               <p className="text-[#66736D]">{contract.startsOn} até {contract.endsOn ?? "sem término"}</p>
               {activeForm === `contract:${contract.id}` ? (
@@ -745,7 +785,19 @@ function CustomerDetailPanel({
                 <button className="text-left font-medium text-[#0E5F4B] underline-offset-4 hover:underline" onClick={() => onSelectAsset(asset.id)} type="button">
                   {asset.name}
                 </button>
-                <Button onClick={() => setActiveForm(activeForm === `asset:${asset.id}` ? null : `asset:${asset.id}`)} variant="secondary">Editar</Button>
+                <div className="flex gap-2">
+                  <Button onClick={() => setActiveForm(activeForm === `asset:${asset.id}` ? null : `asset:${asset.id}`)} variant="secondary">Editar</Button>
+                  <Button
+                    onClick={() => {
+                      if (window.confirm(`Remover o ativo "${asset.name}"?`)) {
+                        deleteAssetMutation.mutate(asset.id);
+                      }
+                    }}
+                    variant="secondary"
+                  >
+                    Remover
+                  </Button>
+                </div>
               </div>
               <p className="text-[#66736D]">{asset.siteName} · {asset.model ?? "sem modelo"} · {asset.serialNumber ?? "sem série"}</p>
               {activeForm === `asset:${asset.id}` ? (
@@ -1019,6 +1071,39 @@ function useCustomerEntityMutation(
       ]);
     }
   });
+}
+
+function useCustomerEntityDeleteMutation(
+  customerId: string,
+  kind: CustomerEntityKind,
+  queryClient: ReturnType<typeof useQueryClient>
+) {
+  return useMutation({
+    mutationFn: (id: string) => deleteCustomerEntity(customerId, kind, id),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["customer-detail", customerId] }),
+        queryClient.invalidateQueries({ queryKey: ["customers"] })
+      ]);
+    }
+  });
+}
+
+async function deleteCustomerEntity(customerId: string, kind: CustomerEntityKind, id: string): Promise<CustomerDetail> {
+  const resource = {
+    asset: "assets",
+    contact: "contacts",
+    contract: "contracts",
+    site: "sites"
+  }[kind];
+
+  const response = await apiFetch(`/customers/${customerId}/${resource}/${id}`, { method: "DELETE" });
+
+  if (!response.ok) {
+    throw new Error("Falha ao remover cadastro administrativo.");
+  }
+
+  return response.json() as Promise<CustomerDetail>;
 }
 
 async function saveCustomerEntity(

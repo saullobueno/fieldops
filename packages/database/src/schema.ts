@@ -208,6 +208,7 @@ export const contacts = pgTable("contacts", {
   email: text("email"),
   phone: text("phone"),
   title: text("title"),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   ...timestamps
 }, (table) => [
   index("contacts_customer_idx").on(table.customerId),
@@ -230,6 +231,7 @@ export const sites = pgTable("sites", {
   longitude: numeric("longitude", { precision: 9, scale: 6 }),
   accessInstructions: text("access_instructions"),
   operatingHours: jsonb("operating_hours").$type<JsonObject>(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   ...timestamps
 }, (table) => [
   index("sites_customer_idx").on(table.customerId),
@@ -245,6 +247,7 @@ export const contracts = pgTable("contracts", {
   startsOn: date("starts_on").notNull(),
   endsOn: date("ends_on"),
   terms: jsonb("terms").$type<JsonObject>().default({}).notNull(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   ...timestamps
 }, (table) => [
   index("contracts_customer_idx").on(table.customerId),
@@ -261,6 +264,7 @@ export const assets = pgTable("assets", {
   model: text("model"),
   warrantyExpiresOn: date("warranty_expires_on"),
   maintenancePlan: jsonb("maintenance_plan").$type<JsonObject>(),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   ...timestamps
 }, (table) => [
   index("assets_site_idx").on(table.siteId),
