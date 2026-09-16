@@ -2,7 +2,7 @@ import { UnauthorizedException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 
 import type { AuthenticatedRequest } from "./auth.decorators.js";
-import { createSignedActorToken, parseActorFromHeaders } from "./auth.guard.js";
+import { SESSION_COOKIE_NAME, createSignedActorToken, parseActorFromHeaders } from "./auth.guard.js";
 
 describe("parseActorFromHeaders", () => {
   it("cria um ator autenticado a partir dos headers validados", () => {
@@ -55,5 +55,53 @@ describe("parseActorFromHeaders", () => {
       organizationId: "org-1",
       permissions: ["notification:read"]
     });
+  });
+
+  it("aceita token de sessão via cookie httpOnly", () => {
+    process.env.FIELDOPS_SESSION_SECRET = "test-secret";
+    const token = createSignedActorToken(
+      {
+        id: "user-1",
+        organizationId: "org-1",
+        permissions: ["notification:read"],
+        roleIds: [],
+        teamIds: [],
+        territoryIds: []
+      },
+      "test-secret"
+    );
+    const request = {
+      headers: { cookie: `outro=valor; ${SESSION_COOKIE_NAME}=${token}` }
+    } as unknown as AuthenticatedRequest;
+
+    expect(parseActorFromHeaders(request)).toMatchObject({
+      id: "user-1",
+      organizationId: "org-1",
+      permissions: ["notification:read"]
+    });
+  });
+
+  it("rejeita token de sessão expirado", () => {
+    process.env.FIELDOPS_SESSION_SECRET = "test-secret";
+    const originalNow = Date.now;
+    Date.now = () => 0;
+    const token = createSignedActorToken(
+      {
+        id: "user-1",
+        organizationId: "org-1",
+        permissions: [],
+        roleIds: [],
+        teamIds: [],
+        territoryIds: []
+      },
+      "test-secret"
+    );
+    Date.now = originalNow;
+
+    const request = {
+      headers: { cookie: `${SESSION_COOKIE_NAME}=${token}` }
+    } as unknown as AuthenticatedRequest;
+
+    expect(() => parseActorFromHeaders(request)).toThrow(UnauthorizedException);
   });
 });

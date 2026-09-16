@@ -61,7 +61,7 @@ export default function HomePage(): React.ReactNode {
       }
       headerEyebrow="Área de trabalho"
       headerTitle="Acme Field Services"
-      onLogout={logout}
+      onLogout={() => void logout()}
       userLabel={session.userName}
     >
       <div className="flex flex-1 flex-col gap-5 p-6 max-sm:p-4">

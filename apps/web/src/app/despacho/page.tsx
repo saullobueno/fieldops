@@ -79,7 +79,7 @@ export default function DispatchPage(): React.ReactNode {
   return (
     <AppShell
       activeHref="/despacho"
-      onLogout={logout}
+      onLogout={() => void logout()}
       userLabel={session.userName}
       headerAction={
         <div className="flex items-center gap-2">

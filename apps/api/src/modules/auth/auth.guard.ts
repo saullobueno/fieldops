@@ -21,6 +21,14 @@ import type { AuthenticatedRequest } from "./auth.decorators.js";
 
 const permissionSet = new Set<Permission>(permissions);
 
+export const SESSION_COOKIE_NAME = "fieldops_session";
+export const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+
+interface SignedTokenPayload {
+  readonly actor: AuthenticatedActor;
+  readonly exp: number;
+}
+
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
@@ -52,6 +60,11 @@ export class AuthGuard implements CanActivate {
 }
 
 export function parseActorFromHeaders(request: AuthenticatedRequest): AuthenticatedActor {
+  const sessionCookie = readSessionCookie(request);
+  if (sessionCookie) {
+    return parseActorFromSignedToken(sessionCookie);
+  }
+
   const bearerToken = readBearerToken(request);
 
   if (bearerToken) {
@@ -76,7 +89,8 @@ export function parseActorFromHeaders(request: AuthenticatedRequest): Authentica
 }
 
 export function createSignedActorToken(actor: AuthenticatedActor, secret = authTokenSecret()): string {
-  const payload = Buffer.from(JSON.stringify(actor)).toString("base64url");
+  const tokenPayload: SignedTokenPayload = { actor, exp: Date.now() + SESSION_TTL_MS };
+  const payload = Buffer.from(JSON.stringify(tokenPayload)).toString("base64url");
   const signature = signPayload(payload, secret);
 
   return `${payload}.${signature}`;
@@ -106,6 +120,32 @@ function readBearerToken(request: AuthenticatedRequest): string | undefined {
   return token;
 }
 
+function readSessionCookie(request: AuthenticatedRequest): string | undefined {
+  return parseCookieHeader(readSingleHeader(request, "cookie"))[SESSION_COOKIE_NAME];
+}
+
+function parseCookieHeader(header: string | undefined): Record<string, string> {
+  if (!header) {
+    return {};
+  }
+
+  const cookies: Record<string, string> = {};
+  for (const part of header.split(";")) {
+    const separatorIndex = part.indexOf("=");
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const key = part.slice(0, separatorIndex).trim();
+    const value = part.slice(separatorIndex + 1).trim();
+    if (key) {
+      cookies[key] = decodeURIComponent(value);
+    }
+  }
+
+  return cookies;
+}
+
 function parseActorFromSignedToken(token: string): AuthenticatedActor {
   const [payload, signature] = token.split(".");
 
@@ -125,21 +165,26 @@ function parseActorFromSignedToken(token: string): AuthenticatedActor {
   }
 
   try {
-    const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Partial<AuthenticatedActor>;
+    const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as Partial<SignedTokenPayload>;
+    const actor = parsed.actor;
 
-    if (!parsed.id || !parsed.organizationId) {
+    if (!actor?.id || !actor.organizationId) {
       throw new UnauthorizedException("Sessão sem ator válido.");
     }
 
+    if (typeof parsed.exp !== "number" || Date.now() > parsed.exp) {
+      throw new UnauthorizedException("Sessão expirada.");
+    }
+
     return {
-      id: parsed.id,
-      organizationId: parsed.organizationId,
-      permissions: (parsed.permissions ?? []).filter((item): item is Permission =>
+      id: actor.id,
+      organizationId: actor.organizationId,
+      permissions: (actor.permissions ?? []).filter((item): item is Permission =>
         permissionSet.has(item)
       ),
-      roleIds: parsed.roleIds ?? [],
-      teamIds: parsed.teamIds ?? [],
-      territoryIds: parsed.territoryIds ?? []
+      roleIds: actor.roleIds ?? [],
+      teamIds: actor.teamIds ?? [],
+      territoryIds: actor.territoryIds ?? []
     };
   } catch (error) {
     if (error instanceof UnauthorizedException) {

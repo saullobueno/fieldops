@@ -7,7 +7,6 @@ Formato de cada item: origem, descrição, fase mestre onde é mais provável de
 ## Aberto
 
 37. **Validação real de deploy e integrações configuradas** — origem: Fases 12/19/20/23/29/32. Ainda falta validar em ambiente real com variáveis finais: Neon, Upstash Redis, Upstash Blob, Groq, MapTiler/OSRM, Vercel/Render e CORS/URLs públicas. Fechamento: fase de release/deploy.
-36. **Hardening de sessão/autenticação** — origem: Fase 21. Sessão ainda fica em `localStorage`, token assinado não tem expiração/revogação prática e logout é apenas client-side. Fechamento: migrar para cookie `httpOnly`/`Secure`, expiração, refresh/revogação ou lista de sessões.
 35. **Ciclo de vida de usuários** — origem: Fase 21. Não há convite/cadastro de usuários, recuperação de senha, troca de senha ou gerenciamento operacional completo de acesso. Fechamento: fase de administração de usuários.
 15. **Sincronização sem Service Worker/background sync real** — origem: Fase 7. A sincronização automática depende da aba estar aberta (evento `online` + retry a cada 15s). Fechamento: quando houver uma fase dedicada a PWA/instalação mobile, hoje não prevista explicitamente no roadmap mestre.
 21. **Pub/sub de tempo real em memória, por processo** — origem: Fase 11 (Tempo Real). `RealtimeService` usa um `EventEmitter` local; funciona com uma única instância da API, mas não escala para múltiplas instâncias sem um broker compartilhado (Redis já está disponível como infraestrutura do projeto, mas não conectado a isso). Fechamento: quando houver necessidade real de múltiplas instâncias da API.
@@ -17,6 +16,8 @@ Formato de cada item: origem, descrição, fase mestre onde é mais provável de
 29. **Caminho real do provedor de IA nunca exercitado contra a rede** — origem: Fase 13, atualizado na Fase 19 (migração Anthropic → Groq). Não há `GROQ_API_KEY` configurada neste ambiente; o loop de tool-use real e a saída estruturada em JSON foram validados só por tipos, testes com o cliente indefinido (caminho heurístico) e revisão de código. Fechamento: validação manual pontual ao configurar a chave em um ambiente com acesso à internet.
 
 ## Fechado
+
+- **Hardening de sessão/autenticação** — origem: Fase 21. Fechado na Fase 39: sessão migrou de `localStorage`/Bearer para cookie `httpOnly` (`sameSite: "lax"` em dev, `"none"` + `secure` em produção), setado por `POST /auth/login` e limpo por um novo `POST /auth/logout`; o payload assinado ganhou expiração (`exp`, TTL de 12h), rejeitada pelo `AuthGuard`. Limitações restantes: sem refresh token/renovação silenciosa e sem lista de sessões para revogação seletiva antes do prazo — revogar uma sessão comprometida hoje exige trocar `FIELDOPS_SESSION_SECRET`, invalidando todas as sessões de uma vez.
 
 - **Mapa do despacho sem rotas, filtros geográficos ou clustering** — origem: Fases 27/28. Fechado parcialmente na Fase 38: `MapView` ganhou suporte a linhas (`routes`); durante o arraste de uma ordem não atribuída, o mapa desenha uma linha reta até cada técnico com pontuação calculada. Limitações restantes: linha é "reta" (não segue ruas — uma rota real exigiria consultar o provedor de mapas por candidato a cada início de arraste) e ainda não há clustering nem filtros geográficos, que fazem mais sentido com um volume de dados maior que o do dataset demo atual.
 

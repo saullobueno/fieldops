@@ -11,7 +11,7 @@ import { AppShell, Button } from "@fieldops/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
-import { apiBaseUrl, apiFetch, getStoredSession } from "../../lib/api-client";
+import { apiBaseUrl, apiFetch } from "../../lib/api-client";
 import { RealtimeStatusBadge } from "../../lib/realtime-status-badge";
 import { useRealtimeStream } from "../../lib/use-realtime-stream";
 import { useRequireAuth } from "../../lib/use-require-auth";
@@ -72,7 +72,7 @@ export default function WorkOrdersPage(): React.ReactNode {
       }
       headerEyebrow="Operação"
       headerTitle="Ordens de serviço"
-      onLogout={logout}
+      onLogout={() => void logout()}
       userLabel={session.userName}
     >
       <div className="grid flex-1 gap-5 p-6 xl:grid-cols-[1fr_420px] max-sm:p-4">
@@ -882,11 +882,7 @@ async function uploadWorkOrderAttachment(
   return new Promise<WorkOrderDetail>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${apiBaseUrl()}/work-orders/${id}/attachments`);
-
-    const session = getStoredSession();
-    if (session) {
-      xhr.setRequestHeader("authorization", `Bearer ${session.token}`);
-    }
+    xhr.withCredentials = true;
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {

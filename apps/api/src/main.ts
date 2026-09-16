@@ -11,6 +11,7 @@ async function bootstrap(): Promise<void> {
 
   app.enableShutdownHooks();
   app.enableCors({
+    credentials: true,
     origin: [/^http:\/\/localhost:3000$/, /^http:\/\/localhost:3001$/]
   });
 

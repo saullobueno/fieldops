@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 
-import { clearSession, getStoredSession, subscribeToSessionChanges, type StoredSession } from "./api-client";
+import { getStoredSession, logoutRequest, subscribeToSessionChanges, type StoredSession } from "./api-client";
 
 function subscribe(callback: () => void): () => void {
   return subscribeToSessionChanges(callback);
@@ -19,7 +19,7 @@ function getServerSnapshot(): StoredSession | undefined {
  * undefined, evitando divergência de hidratação entre SSR e o primeiro
  * render no navegador. Redireciona para /login quando não há sessão.
  */
-export function useRequireAuth(): { session: StoredSession | undefined; logout: () => void } {
+export function useRequireAuth(): { session: StoredSession | undefined; logout: () => Promise<void> } {
   const router = useRouter();
   const session = useSyncExternalStore(subscribe, getStoredSession, getServerSnapshot);
 
@@ -37,8 +37,8 @@ export function useRequireAuth(): { session: StoredSession | undefined; logout: 
     return undefined;
   }, [router, session]);
 
-  const logout = (): void => {
-    clearSession();
+  const logout = async (): Promise<void> => {
+    await logoutRequest();
     router.replace("/login");
   };
 

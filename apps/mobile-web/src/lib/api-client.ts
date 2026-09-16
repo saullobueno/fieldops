@@ -2,7 +2,6 @@ const TOKEN_STORAGE_KEY = "fieldops_token";
 const SESSION_CHANGED_EVENT = "fieldops-session-changed";
 
 export interface StoredSession {
-  readonly token: string;
   readonly userId: string;
   readonly organizationId: string;
   readonly userName: string;
@@ -71,17 +70,14 @@ export function apiBaseUrl(): string {
 }
 
 /**
- * Wrapper de `fetch` que injeta o token de sessão como Bearer token e
- * redireciona para /login quando a API responde 401 (sessão ausente/expirada).
- * Substitui os headers `x-fieldops-*` fixos que a página do técnico usava sozinha.
+ * Wrapper de `fetch` que envia o cookie httpOnly de sessão (`credentials:
+ * "include"`, necessário porque API e web são origens diferentes mesmo em
+ * dev) e redireciona para /login quando a API responde 401 (sessão ausente/
+ * expirada/revogada). O token de sessão em si nunca fica acessível a este
+ * código — ele só existe no cookie, fora do alcance do JS do navegador.
  */
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const session = getStoredSession();
   const headers = new Headers(init.headers);
-
-  if (session) {
-    headers.set("authorization", `Bearer ${session.token}`);
-  }
 
   // FormData nunca deve levar content-type explícito: o browser precisa gerar
   // o boundary do multipart sozinho ao serializar o body.
@@ -89,7 +85,7 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
     headers.set("content-type", "application/json");
   }
 
-  const response = await fetch(`${apiBaseUrl()}${path}`, { ...init, headers });
+  const response = await fetch(`${apiBaseUrl()}${path}`, { ...init, credentials: "include", headers });
 
   if (response.status === 401 && typeof window !== "undefined") {
     clearSession();
@@ -103,4 +99,16 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   }
 
   return response;
+}
+
+/**
+ * Faz o round-trip de logout no servidor (necessário porque JS não consegue
+ * apagar um cookie httpOnly sozinho) e limpa o marcador de sessão local.
+ */
+export async function logoutRequest(): Promise<void> {
+  try {
+    await apiFetch("/auth/logout", { method: "POST" });
+  } finally {
+    clearSession();
+  }
 }

@@ -68,7 +68,7 @@ export default function CustomersPage(): React.ReactNode {
       }
       headerEyebrow="Cadastro"
       headerTitle="Clientes, locais e ativos"
-      onLogout={logout}
+      onLogout={() => void logout()}
       userLabel={session.userName}
     >
       <div className="grid flex-1 gap-5 p-6 xl:grid-cols-[1fr_420px] max-sm:p-4">

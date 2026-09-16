@@ -45,7 +45,7 @@ export default function ReportsPage(): React.ReactNode {
       activeHref="/relatorios"
       headerEyebrow="Operação"
       headerTitle="Relatórios"
-      onLogout={logout}
+      onLogout={() => void logout()}
       userLabel={session.userName}
     >
       <div className="flex flex-1 flex-col gap-5 p-6 max-sm:p-4">

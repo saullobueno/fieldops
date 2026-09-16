@@ -96,7 +96,7 @@ export default function ChecklistTemplatesPage(): React.ReactNode {
       activeHref="/checklists"
       headerEyebrow="Cadastro"
       headerTitle="Templates de checklist"
-      onLogout={logout}
+      onLogout={() => void logout()}
       userLabel={session.userName}
     >
       <div className="grid flex-1 gap-5 p-6 xl:grid-cols-[320px_1fr] max-sm:p-4">

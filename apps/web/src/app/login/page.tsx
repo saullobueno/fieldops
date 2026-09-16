@@ -7,7 +7,6 @@ import { useState } from "react";
 import { storeSession } from "../../lib/api-client";
 
 interface LoginResponse {
-  readonly token: string;
   readonly actor: {
     readonly id: string;
     readonly organizationId: string;
@@ -30,6 +29,7 @@ export default function LoginPage(): React.ReactNode {
       const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
       const response = await fetch(`${baseUrl}/auth/login`, {
         body: JSON.stringify({ email, password }),
+        credentials: "include",
         headers: { "content-type": "application/json" },
         method: "POST"
       });
@@ -42,7 +42,6 @@ export default function LoginPage(): React.ReactNode {
       const data = (await response.json()) as LoginResponse;
       storeSession({
         organizationId: data.actor.organizationId,
-        token: data.token,
         userId: data.actor.id,
         userName: email
       });

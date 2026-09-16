@@ -49,7 +49,7 @@ export default function CopilotPage(): React.ReactNode {
       activeHref="/copilot"
       headerEyebrow="Operação"
       headerTitle="Copiloto de IA"
-      onLogout={logout}
+      onLogout={() => void logout()}
       userLabel={session.userName}
     >
       <div className="flex flex-1 flex-col gap-5 p-6 max-sm:p-4">
