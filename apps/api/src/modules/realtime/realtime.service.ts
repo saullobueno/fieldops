@@ -26,6 +26,9 @@ export class RealtimeService implements OnModuleDestroy {
   private readonly redisMessageHandler = (channel: string, payload: string): void => {
     this.handleRedisMessage(channel, payload);
   };
+  private readonly redisErrorHandler = (): void => {
+    // Redis is best-effort for cross-instance SSE fan-out; local delivery remains active.
+  };
 
   constructor(
     @Optional() @Inject(POSTGRES_POOL) private readonly postgresPool?: pg.Pool,
@@ -34,10 +37,12 @@ export class RealtimeService implements OnModuleDestroy {
     this.emitter.setMaxListeners(0);
     this.redisSubscriber = redisClient?.duplicate();
     this.redisSubscriber?.on("message", this.redisMessageHandler);
+    this.redisSubscriber?.on("error", this.redisErrorHandler);
   }
 
   onModuleDestroy(): void {
     this.redisSubscriber?.off("message", this.redisMessageHandler);
+    this.redisSubscriber?.off("error", this.redisErrorHandler);
     this.redisSubscriber?.disconnect();
   }
 

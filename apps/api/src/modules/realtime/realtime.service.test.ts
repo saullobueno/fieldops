@@ -124,19 +124,19 @@ class FakeRedis {
     return this;
   }
 
-  async publish(channel: string, payload: string): Promise<number> {
+  publish(channel: string, payload: string): Promise<number> {
     this.bus.emit("message", channel, payload);
-    return this.bus.listenerCount("message");
+    return Promise.resolve(this.bus.listenerCount("message"));
   }
 
-  async subscribe(channel: string): Promise<number> {
+  subscribe(channel: string): Promise<number> {
     this.subscriptions.add(channel);
-    return this.subscriptions.size;
+    return Promise.resolve(this.subscriptions.size);
   }
 
-  async unsubscribe(channel: string): Promise<number> {
+  unsubscribe(channel: string): Promise<number> {
     this.subscriptions.delete(channel);
-    return this.subscriptions.size;
+    return Promise.resolve(this.subscriptions.size);
   }
 
   disconnect(): void {

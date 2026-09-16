@@ -349,11 +349,11 @@ export function createDemoSeedStatements(now = new Date("2026-01-15T12:00:00.000
   ];
 }
 
-export async function seedDemoDatabase(pool: pg.Pool): Promise<void> {
+export async function seedDemoDatabase(pool: pg.Pool, now?: Date): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("begin");
-    for (const item of createDemoSeedStatements()) {
+    for (const item of createDemoSeedStatements(now)) {
       await client.query(item.text, [...item.values]);
     }
     await client.query("commit");
@@ -373,12 +373,19 @@ function addMinutes(dateValue: Date, minutes: number): Date {
   return new Date(dateValue.getTime() + minutes * 60_000);
 }
 
+function currentDemoBaseDate(): Date {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - 1);
+  date.setUTCHours(12, 0, 0, 0);
+  return date;
+}
+
 async function runFromCli(): Promise<void> {
   const env = parseServerEnv(process.env);
   const pool = new Pool({ connectionString: env.DATABASE_URL });
 
   try {
-    await seedDemoDatabase(pool);
+    await seedDemoDatabase(pool, currentDemoBaseDate());
   } finally {
     await pool.end();
   }

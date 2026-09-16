@@ -23,10 +23,16 @@ export function createDatabaseClient(pool: pg.Pool): DatabaseClient {
 export * from "./schema.js";
 
 export function createRedisClient(redisUrl: string): RedisClient {
-  return new Redis(redisUrl, {
+  const redis = new Redis(redisUrl, {
     lazyConnect: true,
     maxRetriesPerRequest: 3
   });
+
+  redis.on("error", () => {
+    // Upstash/Render can reset idle TLS sockets; callers handle reconnects.
+  });
+
+  return redis;
 }
 
 export async function pingPostgres(pool: pg.Pool): Promise<void> {
