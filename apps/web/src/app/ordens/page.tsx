@@ -11,7 +11,7 @@ import { AppShell, Button } from "@fieldops/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
-import { apiBaseUrl, apiFetch } from "../../lib/api-client";
+import { apiBaseUrl, apiFetch, getStoredSession } from "../../lib/api-client";
 import { RealtimeStatusBadge } from "../../lib/realtime-status-badge";
 import { useRealtimeStream } from "../../lib/use-realtime-stream";
 import { useRequireAuth } from "../../lib/use-require-auth";
@@ -190,6 +190,7 @@ function WorkOrderDetailPanel({ id }: { id: string }): React.ReactNode {
   const [signatureAttachmentId, setSignatureAttachmentId] = useState("");
   const [attachmentFile, setAttachmentFile] = useState<File | undefined>(undefined);
   const [attachmentKind, setAttachmentKind] = useState<"photo" | "document" | "signature">("photo");
+  const [uploadProgress, setUploadProgress] = useState<number | undefined>(undefined);
   const detailQuery = useQuery({
     enabled: Boolean(id),
     queryFn: () => fetchWorkOrderDetail(id),
@@ -242,9 +243,14 @@ function WorkOrderDetailPanel({ id }: { id: string }): React.ReactNode {
     }
   });
   const attachmentMutation = useMutation({
-    mutationFn: () => uploadWorkOrderAttachment(id, { file: attachmentFile!, kind: attachmentKind }),
+    mutationFn: () =>
+      uploadWorkOrderAttachment(id, { file: attachmentFile!, kind: attachmentKind }, setUploadProgress),
+    onError: () => {
+      setUploadProgress(undefined);
+    },
     onSuccess: async () => {
       setAttachmentFile(undefined);
+      setUploadProgress(undefined);
       await queryClient.invalidateQueries({ queryKey: ["work-order-detail", id] });
       await queryClient.invalidateQueries({ queryKey: ["work-order-audit", id] });
     }
@@ -389,6 +395,11 @@ function WorkOrderDetailPanel({ id }: { id: string }): React.ReactNode {
             <Button disabled={attachmentMutation.isPending || !attachmentFile} type="submit" variant="secondary">
               {attachmentMutation.isPending ? "Enviando..." : "Enviar anexo"}
             </Button>
+            {attachmentMutation.isPending && uploadProgress !== undefined ? (
+              <div className="h-2 w-full min-w-40 flex-1 rounded-full bg-[#E1E6E3]" role="progressbar" aria-valuenow={uploadProgress} aria-valuemin={0} aria-valuemax={100}>
+                <div className="h-2 rounded-full bg-[#0E5F4B] transition-all" style={{ width: `${uploadProgress}%` }} />
+              </div>
+            ) : null}
             {attachmentMutation.isError ? (
               <p className="w-full text-sm text-[#B42318]">{attachmentMutation.error.message}</p>
             ) : null}
@@ -855,24 +866,53 @@ async function addWorkOrderSignature(
   return response.json() as Promise<WorkOrderDetail>;
 }
 
+/**
+ * Usa XMLHttpRequest (não `fetch`) porque só o XHR expõe progresso de upload
+ * via `upload.onprogress` — necessário para a barra de progresso na UI.
+ */
 async function uploadWorkOrderAttachment(
   id: string,
-  input: { file: File; kind: "photo" | "document" | "signature" }
+  input: { file: File; kind: "photo" | "document" | "signature" },
+  onProgress: (percent: number) => void
 ): Promise<WorkOrderDetail> {
   const formData = new FormData();
   formData.append("file", input.file);
   formData.append("kind", input.kind);
 
-  const response = await apiFetch(`/work-orders/${id}/attachments`, {
-    body: formData,
-    method: "POST"
+  return new Promise<WorkOrderDetail>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${apiBaseUrl()}/work-orders/${id}/attachments`);
+
+    const session = getStoredSession();
+    if (session) {
+      xhr.setRequestHeader("authorization", `Bearer ${session.token}`);
+    }
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText) as WorkOrderDetail);
+        return;
+      }
+
+      let message = "Falha ao enviar anexo.";
+      try {
+        message = (JSON.parse(xhr.responseText) as { message?: string }).message ?? message;
+      } catch {
+        // corpo da resposta não era JSON; mantém a mensagem padrão.
+      }
+      reject(new Error(message));
+    };
+
+    xhr.onerror = () => reject(new Error("Falha ao enviar anexo."));
+
+    xhr.send(formData);
   });
-
-  if (!response.ok) {
-    throw new Error(await extractErrorMessage(response, "Falha ao enviar anexo."));
-  }
-
-  return response.json() as Promise<WorkOrderDetail>;
 }
 
 async function revokeWorkOrderAttachment(id: string, attachmentId: string): Promise<WorkOrderDetail> {
