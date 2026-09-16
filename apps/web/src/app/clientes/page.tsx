@@ -26,6 +26,7 @@ export default function CustomersPage(): React.ReactNode {
   const [limit, setLimit] = useState(pageSize);
   const [search, setSearch] = useState("");
   const [territoryId, setTerritoryId] = useState("");
+  const [activeContractOnly, setActiveContractOnly] = useState(false);
   const [selectedId, setSelectedId] = useState("00000000-0000-4000-8000-000000000301");
   const [selectedAssetId, setSelectedAssetId] = useState<string | undefined>(undefined);
   const [isCreating, setIsCreating] = useState(false);
@@ -36,8 +37,8 @@ export default function CustomersPage(): React.ReactNode {
   });
   const listQuery = useQuery({
     enabled: Boolean(session),
-    queryFn: () => fetchCustomers({ limit, search, territoryId }),
-    queryKey: ["customers", limit, search, territoryId]
+    queryFn: () => fetchCustomers({ activeContractOnly, limit, search, territoryId }),
+    queryKey: ["customers", limit, search, territoryId, activeContractOnly]
   });
   const createMutation = useMutation({
     mutationFn: (input: CustomerWritePayload) => createCustomer(input),
@@ -104,6 +105,14 @@ export default function CustomersPage(): React.ReactNode {
                 <option key={territory.id} value={territory.id}>{territory.name}</option>
               ))}
             </select>
+            <label className="flex items-center gap-2 text-sm text-[#4F5A55]">
+              <input
+                checked={activeContractOnly}
+                onChange={(event) => setActiveContractOnly(event.target.checked)}
+                type="checkbox"
+              />
+              Somente com contrato ativo
+            </label>
             <Button onClick={() => void listQuery.refetch()} variant="secondary">Atualizar</Button>
           </div>
           <div className="mt-4">
@@ -916,13 +925,21 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   );
 }
 
-async function fetchCustomers(input: { limit: number; search: string; territoryId: string }): Promise<CustomerListResponse> {
+async function fetchCustomers(input: {
+  limit: number;
+  search: string;
+  territoryId: string;
+  activeContractOnly: boolean;
+}): Promise<CustomerListResponse> {
   const params = new URLSearchParams({ limit: String(input.limit), offset: "0" });
   if (input.search) {
     params.set("search", input.search);
   }
   if (input.territoryId) {
     params.set("territoryId", input.territoryId);
+  }
+  if (input.activeContractOnly) {
+    params.set("activeContract", "true");
   }
 
   const response = await apiFetch(`/customers?${params.toString()}`);

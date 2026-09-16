@@ -10,6 +10,7 @@ export interface CustomerListFilter {
   readonly organizationId: string;
   readonly search?: string;
   readonly territoryId?: string;
+  readonly activeContract?: boolean;
   readonly limit: number;
   readonly offset: number;
 }
@@ -558,6 +559,12 @@ export class CustomersService {
       where.push(`exists (select 1 from sites s2 where s2.customer_id = c.id and s2.territory_id = $${values.length})`);
     }
 
+    if (filter.activeContract) {
+      where.push(
+        `exists (select 1 from contracts ct where ct.customer_id = c.id and ct.starts_on <= current_date and (ct.ends_on is null or ct.ends_on >= current_date))`
+      );
+    }
+
     const whereSql = where.join(" and ");
     const count = await this.postgresPool!.query<{ total: string }>(
       `select count(*)::text as total from customers c where ${whereSql}`,
@@ -819,6 +826,11 @@ function demoTerritories(): readonly NamedOption[] {
   ];
 }
 
+function isContractActive(contract: { readonly startsOn: string; readonly endsOn: string | null }): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  return contract.startsOn <= today && (!contract.endsOn || contract.endsOn >= today);
+}
+
 function listFromMemory(filter: CustomerListFilter): CustomerListResponse {
   const normalizedSearch = filter.search?.trim().toLowerCase();
   const territoryId = filter.territoryId?.trim();
@@ -826,8 +838,9 @@ function listFromMemory(filter: CustomerListFilter): CustomerListResponse {
     const sameOrganization = item.organizationId === filter.organizationId;
     const matchesSearch = !normalizedSearch || item.name.toLowerCase().includes(normalizedSearch);
     const matchesTerritory = !territoryId || item.sites.some((site) => site.territoryId === territoryId);
+    const matchesActiveContract = !filter.activeContract || item.contracts.some(isContractActive);
 
-    return sameOrganization && matchesSearch && matchesTerritory;
+    return sameOrganization && matchesSearch && matchesTerritory && matchesActiveContract;
   });
 
   return {

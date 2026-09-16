@@ -14,6 +14,14 @@ describe("CustomersService", () => {
     expect(result.items[0]?.name).toBe("Hospital Santa Clara");
   });
 
+  it("filtra clientes demo por contrato ativo", async () => {
+    const service = new CustomersService();
+
+    const result = await service.list({ activeContract: true, limit: 20, offset: 0, organizationId });
+
+    expect(result.items.map((item) => item.name)).toEqual(["Hospital Santa Clara"]);
+  });
+
   it("retorna detalhe demo com locais, contatos e ativos", async () => {
     const service = new CustomersService();
 
