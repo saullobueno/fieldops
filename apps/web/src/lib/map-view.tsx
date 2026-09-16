@@ -40,9 +40,11 @@ function toRouteCollection(routes: readonly MapRoute[]): RouteFeatureCollection 
   };
 }
 
-// Fallback sem chave para manter a demo navegável mesmo quando o provedor
-// configurado falha ou ainda não foi embutido no build da Vercel.
-const FALLBACK_STYLE: maplibregl.StyleSpecification = {
+const CARTO_FALLBACK_STYLE_URL = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+
+// Último recurso sem chave para manter a demo navegável mesmo se os estilos
+// públicos estiverem indisponíveis.
+const MINIMAL_FALLBACK_STYLE: maplibregl.StyleSpecification = {
   glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
   layers: [{ id: "osm-raster", source: "osm", type: "raster" }],
   sources: {
@@ -58,7 +60,7 @@ const FALLBACK_STYLE: maplibregl.StyleSpecification = {
 
 function mapStyle(): string | maplibregl.StyleSpecification {
   const key = process.env.NEXT_PUBLIC_MAPTILER_KEY;
-  return key ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}` : FALLBACK_STYLE;
+  return key ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}` : CARTO_FALLBACK_STYLE_URL;
 }
 
 export function MapView({
@@ -79,7 +81,7 @@ export function MapView({
       return;
     }
 
-    let fallbackApplied = false;
+    let fallbackStep = 0;
     const map = new maplibregl.Map({
       attributionControl: false,
       center: [-46.633308, -23.55052],
@@ -88,12 +90,16 @@ export function MapView({
       zoom: 10
     });
     const handleMapError = (): void => {
-      if (fallbackApplied || !process.env.NEXT_PUBLIC_MAPTILER_KEY) {
+      if (fallbackStep === 0 && process.env.NEXT_PUBLIC_MAPTILER_KEY) {
+        fallbackStep = 1;
+        map.setStyle(CARTO_FALLBACK_STYLE_URL);
         return;
       }
 
-      fallbackApplied = true;
-      map.setStyle(FALLBACK_STYLE);
+      if (fallbackStep <= 1) {
+        fallbackStep = 2;
+        map.setStyle(MINIMAL_FALLBACK_STYLE);
+      }
     };
 
     map.on("error", handleMapError);
