@@ -4,6 +4,7 @@ import { AdminModule } from "./admin/admin.module.js";
 import { AssetsModule } from "./assets/assets.module.js";
 import { AttachmentsModule } from "./attachments/attachments.module.js";
 import { AuthModule } from "./auth/auth.module.js";
+import { CalendarModule } from "./calendar/calendar.module.js";
 import { ChecklistTemplatesModule } from "./checklist-templates/checklist-templates.module.js";
 import { CopilotModule } from "./copilot/copilot.module.js";
 import { CustomersModule } from "./customers/customers.module.js";
@@ -25,6 +26,7 @@ import { WorkOrdersModule } from "./work-orders/work-orders.module.js";
     AssetsModule,
     AttachmentsModule,
     AuthModule,
+    CalendarModule,
     ChecklistTemplatesModule,
     CopilotModule,
     CustomersModule,

@@ -107,10 +107,15 @@ Todas têm fallback determinístico quando ausentes — nenhuma é obrigatória 
 
 | Variável | Efeito quando configurada |
 | --- | --- |
+| `CORS_ALLOWED_ORIGINS` | Origens web/mobile autorizadas a chamar a API com cookie de sessão. |
+| `NEXT_PUBLIC_API_BASE_URL` | URL pública da API usada pelos apps web/mobile. |
 | `MAPS_PROVIDER_BASE_URL` | Estimativa de rota real via OSRM no despacho (em vez do adaptador mock). |
+| `CALENDAR_PROVIDER` | Habilita bloqueios externos de calendário no despacho; hoje aceita `mock`. |
 | `GROQ_API_KEY` | Copiloto usa o modelo real da Groq (em vez do caminho heurístico). |
 | `NEXT_PUBLIC_MAPTILER_KEY` | Tiles reais do MapTiler no mapa (em vez do estilo público sem chave). |
 | `UPSTASH_BLOB_TOKEN` | Anexos vão para o Upstash Blob (em vez de disco local). |
+
+O roteiro de deploy gratuito está em [`docs/deploy-free-tier.md`](docs/deploy-free-tier.md).
 
 ## Verificação
 

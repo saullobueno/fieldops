@@ -12,6 +12,7 @@ describe("parseServerEnv", () => {
       })
     ).toMatchObject({
       API_PORT: 4100,
+      CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:3001",
       DATABASE_URL: "postgres://fieldops:fieldops@localhost:5432/fieldops",
       NODE_ENV: "development",
       REDIS_URL: "redis://localhost:6379"

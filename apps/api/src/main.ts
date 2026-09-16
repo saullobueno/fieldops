@@ -12,10 +12,26 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
   app.enableCors({
     credentials: true,
-    origin: [/^http:\/\/localhost:3000$/, /^http:\/\/localhost:3001$/]
+    origin: parseAllowedOrigins(env.CORS_ALLOWED_ORIGINS)
   });
 
-  await app.listen(env.API_PORT);
+  await app.listen(resolveListenPort(env.API_PORT));
 }
 
 void bootstrap();
+
+function parseAllowedOrigins(value: string): string[] {
+  return value
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+function resolveListenPort(defaultPort: number): number {
+  if (!process.env.PORT) {
+    return defaultPort;
+  }
+
+  const platformPort = Number(process.env.PORT);
+  return Number.isInteger(platformPort) && platformPort > 0 ? platformPort : defaultPort;
+}

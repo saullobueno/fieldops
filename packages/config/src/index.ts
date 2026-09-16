@@ -7,6 +7,7 @@ export const serverEnvSchema = z.object({
   API_PORT: z.coerce.number().int().positive().default(4000),
   ATTACHMENT_STORAGE_ROOT: z.string().min(1).default("storage"),
   ATTACHMENT_URL_SECRET: z.string().min(16).default("fieldops-demo-secret"),
+  CORS_ALLOWED_ORIGINS: z.string().min(1).default("http://localhost:3000,http://localhost:3001"),
   DATABASE_URL: z.string().url(),
   FIELDOPS_SESSION_SECRET: z.string().min(16).default("fieldops-demo-session-secret"),
   MAPS_PROVIDER_BASE_URL: z.string().url().optional().or(z.literal("")),

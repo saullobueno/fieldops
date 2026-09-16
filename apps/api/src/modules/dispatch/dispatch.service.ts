@@ -10,6 +10,7 @@ import type {
 } from "@fieldops/types";
 import type pg from "pg";
 
+import { CalendarService } from "../calendar/calendar.service.js";
 import { POSTGRES_POOL } from "../infrastructure/infrastructure.module.js";
 import { MapsService } from "../maps/maps.service.js";
 import { RealtimeService } from "../realtime/realtime.service.js";
@@ -80,6 +81,7 @@ export class DispatchService {
   constructor(
     @Inject(RealtimeService) private readonly realtimeService: RealtimeService,
     @Inject(MapsService) private readonly mapsService: MapsService,
+    @Optional() @Inject(CalendarService) private readonly calendarService?: CalendarService,
     @Optional() @Inject(POSTGRES_POOL) private readonly postgresPool?: pg.Pool
   ) {}
 
@@ -97,7 +99,7 @@ export class DispatchService {
 
   async getCandidates(workOrderId: string, organizationId: string): Promise<readonly DispatchCandidate[]> {
     if (!this.postgresPool) {
-      return getDemoCandidates(workOrderId, this.mapsService);
+      return getDemoCandidates(workOrderId, this.mapsService, this.calendarService);
     }
 
     try {
@@ -113,7 +115,7 @@ export class DispatchService {
 
   async createAssignment(input: CreateAssignmentInput): Promise<DispatchAssignmentResult> {
     if (!this.postgresPool) {
-      return createDemoAssignment(input, this.realtimeService);
+      return createDemoAssignment(input, this.realtimeService, this.calendarService);
     }
 
     try {
@@ -233,10 +235,19 @@ export class DispatchService {
       workOrderTerritoryId: scope.territory_id
     });
 
+    const externalBusySlots = await this.listExternalBusySlots(
+      technician.id,
+      scope.scheduled_start_at,
+      scope.scheduled_end_at
+    );
+    const busySlots = [
+      ...overlapping.rows.map((row) => ({ endsAt: toDate(row.ends_at), startsAt: toDate(row.starts_at) })),
+      ...externalBusySlots
+    ];
     const hasConflict =
       scope.scheduled_start_at && scope.scheduled_end_at
         ? hasScheduleConflict(
-            overlapping.rows.map((row) => ({ endsAt: toDate(row.ends_at), startsAt: toDate(row.starts_at) })),
+            busySlots,
             { endsAt: toDate(scope.scheduled_end_at), startsAt: toDate(scope.scheduled_start_at) }
           )
         : false;
@@ -331,8 +342,17 @@ export class DispatchService {
          where technician_id = $1 and status in ('assigned', 'accepted') and work_order_id != $2`,
         [input.technicianId, input.workOrderId]
       );
+      const externalBusySlots = await this.listExternalBusySlots(
+        input.technicianId,
+        workOrderRow.scheduled_start_at,
+        workOrderRow.scheduled_end_at
+      );
+      const busySlots = [
+        ...overlapping.rows.map((row) => ({ endsAt: toDate(row.ends_at), startsAt: toDate(row.starts_at) })),
+        ...externalBusySlots
+      ];
 
-      if (hasScheduleConflict(overlapping.rows.map((row) => ({ endsAt: toDate(row.ends_at), startsAt: toDate(row.starts_at) })), candidateWindow)) {
+      if (hasScheduleConflict(busySlots, candidateWindow)) {
         throw new ConflictException("Técnico já possui atribuição conflitante nesse horário.");
       }
 
@@ -431,6 +451,24 @@ export class DispatchService {
     } finally {
       client.release();
     }
+  }
+
+  private async listExternalBusySlots(
+    technicianId: string,
+    startsAt: Date | string | null,
+    endsAt: Date | string | null
+  ): Promise<readonly { readonly startsAt: Date; readonly endsAt: Date }[]> {
+    if (!this.calendarService || !startsAt || !endsAt) {
+      return [];
+    }
+
+    const slots = await this.calendarService.listBusySlots({
+      from: toDate(startsAt),
+      technicianId,
+      to: toDate(endsAt)
+    });
+
+    return slots.map((slot) => ({ endsAt: slot.endsAt, startsAt: slot.startsAt }));
   }
 }
 
@@ -585,7 +623,11 @@ function getDemoBoard(date: string): DispatchBoard {
   };
 }
 
-async function getDemoCandidates(workOrderId: string, mapsService: MapsService): Promise<readonly DispatchCandidate[]> {
+async function getDemoCandidates(
+  workOrderId: string,
+  mapsService: MapsService,
+  calendarService?: CalendarService
+): Promise<readonly DispatchCandidate[]> {
   const workOrder = demoUnassigned.find((item) => item.id === workOrderId);
   if (!workOrder) {
     throw new NotFoundException("Ordem de serviço não encontrada.");
@@ -609,7 +651,10 @@ async function getDemoCandidates(workOrderId: string, mapsService: MapsService):
       });
 
       const hasConflict = hasScheduleConflict(
-        assignments.map((item) => ({ endsAt: new Date(item.endsAt), startsAt: new Date(item.startsAt) })),
+        [
+          ...assignments.map((item) => ({ endsAt: new Date(item.endsAt), startsAt: new Date(item.startsAt) })),
+          ...(await listDemoExternalBusySlots(calendarService, technician.id, workOrder))
+        ],
         { endsAt: new Date(workOrder.scheduledEndAt), startsAt: new Date(workOrder.scheduledStartAt) }
       );
 
@@ -627,7 +672,11 @@ async function getDemoCandidates(workOrderId: string, mapsService: MapsService):
   return candidates.sort((a, b) => b.score - a.score);
 }
 
-function createDemoAssignment(input: CreateAssignmentInput, realtimeService: RealtimeService): DispatchAssignmentResult {
+async function createDemoAssignment(
+  input: CreateAssignmentInput,
+  realtimeService: RealtimeService,
+  calendarService?: CalendarService
+): Promise<DispatchAssignmentResult> {
   const workOrderIndex = demoUnassigned.findIndex((item) => item.id === input.workOrderId);
   if (workOrderIndex < 0) {
     throw new NotFoundException("Ordem de serviço não encontrada.");
@@ -642,7 +691,11 @@ function createDemoAssignment(input: CreateAssignmentInput, realtimeService: Rea
   const candidateWindow = { endsAt: new Date(workOrder.scheduledEndAt), startsAt: new Date(workOrder.scheduledStartAt) };
   const existingAssignments = demoAssignments[technician.id] ?? [];
 
-  if (hasScheduleConflict(existingAssignments.map((item) => ({ endsAt: new Date(item.endsAt), startsAt: new Date(item.startsAt) })), candidateWindow)) {
+  const busySlots = [
+    ...existingAssignments.map((item) => ({ endsAt: new Date(item.endsAt), startsAt: new Date(item.startsAt) })),
+    ...(await listDemoExternalBusySlots(calendarService, technician.id, workOrder))
+  ];
+  if (hasScheduleConflict(busySlots, candidateWindow)) {
     throw new ConflictException("Técnico já possui atribuição conflitante nesse horário.");
   }
 
@@ -687,4 +740,22 @@ function createDemoAssignment(input: CreateAssignmentInput, realtimeService: Rea
     technicianId: technician.id,
     workOrderId: workOrder.id
   };
+}
+
+async function listDemoExternalBusySlots(
+  calendarService: CalendarService | undefined,
+  technicianId: string,
+  workOrder: DispatchUnassignedWorkOrder
+): Promise<readonly { readonly startsAt: Date; readonly endsAt: Date }[]> {
+  if (!calendarService) {
+    return [];
+  }
+
+  const slots = await calendarService.listBusySlots({
+    from: new Date(workOrder.scheduledStartAt),
+    technicianId,
+    to: new Date(workOrder.scheduledEndAt)
+  });
+
+  return slots.map((slot) => ({ endsAt: slot.endsAt, startsAt: slot.startsAt }));
 }

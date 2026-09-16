@@ -4,6 +4,8 @@ import { calculateReconnectDelayMs, isRealtimeConnectionStale } from "@fieldops/
 import type { RealtimeEnvelope } from "@fieldops/types";
 import { useEffect, useRef, useState } from "react";
 
+import { apiBaseUrl } from "./api-client";
+
 export type RealtimeConnectionStatus = "connecting" | "connected" | "reconnecting" | "stale";
 
 const STALE_CHECK_INTERVAL_MS = 5_000;
@@ -26,7 +28,9 @@ export function useRealtimeStream(organizationId: string, permissionsCsv: string
 
     function connect(): void {
       const params = new URLSearchParams({ organizationId, permissions: permissionsCsv });
-      source = new EventSource(`http://localhost:4000/realtime/stream?${params.toString()}`);
+      const streamUrl = new URL("/realtime/stream", apiBaseUrl());
+      streamUrl.search = params.toString();
+      source = new EventSource(streamUrl.toString(), { withCredentials: true });
 
       source.onopen = () => {
         attempt = 0;
