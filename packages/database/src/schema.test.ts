@@ -6,6 +6,7 @@ describe("domainSchemaTables", () => {
   it("expõe todas as tabelas planejadas para a Fase 1", () => {
     expect(Object.keys(domainSchemaTables).toSorted()).toEqual([
       "aiConversations",
+      "aiRecommendations",
       "aiToolCalls",
       "assets",
       "attachments",

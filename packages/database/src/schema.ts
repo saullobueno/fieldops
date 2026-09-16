@@ -544,6 +544,24 @@ export const aiToolCalls = pgTable("ai_tool_calls", {
   index("ai_tool_calls_conversation_idx").on(table.conversationId)
 ]);
 
+export const aiRecommendations = pgTable("ai_recommendations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }).notNull(),
+  conversationId: uuid("conversation_id").references(() => aiConversations.id, { onDelete: "cascade" }).notNull(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  question: text("question").notNull(),
+  title: text("title").notNull(),
+  summary: text("summary").notNull(),
+  source: text("source").notNull(),
+  suggestedAction: jsonb("suggested_action").$type<JsonObject>(),
+  evidence: jsonb("evidence").$type<JsonObject>().default({}).notNull(),
+  requiresApproval: boolean("requires_approval").default(false).notNull(),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+}, (table) => [
+  index("ai_recommendations_org_idx").on(table.organizationId)
+]);
+
 export const syncOperations = pgTable("sync_operations", {
   id: uuid("id").primaryKey().defaultRandom(),
   organizationId: uuid("organization_id").references(() => organizations.id, { onDelete: "cascade" }).notNull(),
@@ -574,6 +592,7 @@ export const deviceSessions = pgTable("device_sessions", {
 
 export const domainSchemaTables = {
   aiConversations,
+  aiRecommendations,
   aiToolCalls,
   assets,
   attachments,
@@ -610,4 +629,4 @@ export const domainSchemaTables = {
   workOrders
 };
 
-export const tableCountCheck = sql<number>`35`;
+export const tableCountCheck = sql<number>`36`;

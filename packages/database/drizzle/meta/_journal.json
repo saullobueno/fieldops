@@ -22,6 +22,13 @@
       "when": 1789505986769,
       "tag": "0002_tan_william_stryker",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789506536396,
+      "tag": "0003_wise_ultimates",
+      "breakpoints": true
     }
   ]
 }

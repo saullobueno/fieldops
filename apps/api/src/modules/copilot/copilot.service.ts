@@ -52,6 +52,20 @@ interface StoredRecommendation {
   readonly recommendation: CopilotRecommendation;
 }
 
+interface RecommendationRow {
+  readonly id: string;
+  readonly conversation_id: string;
+  readonly question: string;
+  readonly title: string;
+  readonly summary: string;
+  readonly source: "groq" | "heuristic";
+  readonly suggested_action: CopilotSuggestedAction | null;
+  readonly evidence: readonly CopilotToolCallEvidence[];
+  readonly requires_approval: boolean;
+  readonly approved_at: Date | string | null;
+  readonly created_at: Date | string;
+}
+
 const recommendationStore = new Map<string, StoredRecommendation>();
 
 @Injectable()
@@ -85,17 +99,17 @@ export class CopilotService {
   }
 
   async approve(actor: AuthenticatedActor, recommendationId: string): Promise<CopilotApprovalResult> {
-    const stored = recommendationStore.get(recommendationId);
+    const recommendation = await this.loadRecommendation(actor, recommendationId);
 
-    if (!stored || stored.organizationId !== actor.organizationId) {
+    if (!recommendation) {
       throw new NotFoundException("Recomendação não encontrada.");
     }
 
-    if (stored.recommendation.approvedAt) {
+    if (recommendation.approvedAt) {
       throw new BadRequestException("Esta recomendação já foi aprovada.");
     }
 
-    const action = stored.recommendation.suggestedAction;
+    const action = recommendation.suggestedAction;
     if (!action) {
       throw new BadRequestException("Esta recomendação não possui uma ação para aprovar.");
     }
@@ -107,11 +121,10 @@ export class CopilotService {
       workOrderId: action.workOrderId
     });
 
-    const approvedRecommendation: CopilotRecommendation = {
-      ...stored.recommendation,
-      approvedAt: new Date().toISOString()
-    };
+    const approvedAt = new Date().toISOString();
+    const approvedRecommendation: CopilotRecommendation = { ...recommendation, approvedAt };
     recommendationStore.set(recommendationId, { organizationId: actor.organizationId, recommendation: approvedRecommendation });
+    await this.persistApproval(actor, recommendationId, approvedAt);
 
     await this.recordApprovalAudit(actor, approvedRecommendation);
 
@@ -121,6 +134,44 @@ export class CopilotService {
       technicianId: action.technicianId,
       workOrderId: action.workOrderId
     };
+  }
+
+  /**
+   * O `Map` em memória é o caminho rápido (evita ler o próprio insert logo em seguida);
+   * o Postgres é a fonte de verdade que sobrevive a um restart da API.
+   */
+  private async loadRecommendation(
+    actor: AuthenticatedActor,
+    recommendationId: string
+  ): Promise<CopilotRecommendation | undefined> {
+    const cached = recommendationStore.get(recommendationId);
+    if (cached && cached.organizationId === actor.organizationId) {
+      return cached.recommendation;
+    }
+
+    if (!this.postgresPool) {
+      return undefined;
+    }
+
+    try {
+      const result = await this.postgresPool.query<RecommendationRow>(
+        `select id, conversation_id, question, title, summary, source, suggested_action, evidence, requires_approval, approved_at, created_at
+         from ai_recommendations
+         where id = $1 and organization_id = $2`,
+        [recommendationId, actor.organizationId]
+      );
+
+      const row = result.rows[0];
+      if (!row) {
+        return undefined;
+      }
+
+      const recommendation = toRecommendation(row);
+      recommendationStore.set(recommendationId, { organizationId: actor.organizationId, recommendation });
+      return recommendation;
+    } catch {
+      return undefined;
+    }
   }
 
   private async askWithGroq(actor: AuthenticatedActor, question: string): Promise<CopilotRecommendation> {
@@ -376,8 +427,42 @@ export class CopilotService {
           ]
         );
       }
+
+      await this.postgresPool.query(
+        `insert into ai_recommendations
+           (id, organization_id, conversation_id, user_id, question, title, summary, source, suggested_action, evidence, requires_approval)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11)`,
+        [
+          recommendation.id,
+          actor.organizationId,
+          conversationId,
+          actor.id,
+          recommendation.question,
+          recommendation.title,
+          recommendation.summary,
+          recommendation.source,
+          recommendation.suggestedAction ? JSON.stringify(recommendation.suggestedAction) : null,
+          JSON.stringify(recommendation.evidence),
+          recommendation.requiresApproval
+        ]
+      );
     } catch {
-      // Persistência de conversa/evidência é best-effort; a recomendação já foi calculada.
+      // Persistência de conversa/evidência/recomendação é best-effort; a recomendação já foi calculada.
+    }
+  }
+
+  private async persistApproval(actor: AuthenticatedActor, recommendationId: string, approvedAt: string): Promise<void> {
+    if (!this.postgresPool) {
+      return;
+    }
+
+    try {
+      await this.postgresPool.query(
+        `update ai_recommendations set approved_at = $1 where id = $2 and organization_id = $3`,
+        [approvedAt, recommendationId, actor.organizationId]
+      );
+    } catch {
+      // Best-effort: a aprovação já foi aplicada em memória e no despacho.
     }
   }
 
@@ -411,4 +496,24 @@ export class CopilotService {
 
 function isCopilotToolName(value: string): value is CopilotToolName {
   return (copilotToolNames as readonly string[]).includes(value);
+}
+
+function toRecommendation(row: RecommendationRow): CopilotRecommendation {
+  return {
+    approvedAt: row.approved_at ? toIso(row.approved_at) : null,
+    conversationId: row.conversation_id,
+    createdAt: toIso(row.created_at),
+    evidence: row.evidence,
+    id: row.id,
+    question: row.question,
+    requiresApproval: row.requires_approval,
+    source: row.source,
+    suggestedAction: row.suggested_action,
+    summary: row.summary,
+    title: row.title
+  };
+}
+
+function toIso(value: Date | string): string {
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
 }
