@@ -40,19 +40,14 @@ function toRouteCollection(routes: readonly MapRoute[]): RouteFeatureCollection 
   };
 }
 
-const CARTO_RASTER_STYLE: maplibregl.StyleSpecification = {
+const OPEN_STREET_MAP_STYLE: maplibregl.StyleSpecification = {
   glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-  layers: [{ id: "carto-raster", source: "carto", type: "raster" }],
+  layers: [{ id: "osm-raster", source: "osm", type: "raster" }],
   sources: {
-    carto: {
-      attribution: "© OpenStreetMap contributors © CARTO",
+    osm: {
+      attribution: "© OpenStreetMap contributors",
       tileSize: 256,
-      tiles: [
-        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
-      ],
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
       type: "raster"
     }
   },
@@ -60,7 +55,7 @@ const CARTO_RASTER_STYLE: maplibregl.StyleSpecification = {
 };
 
 function mapStyle(): maplibregl.StyleSpecification {
-  return CARTO_RASTER_STYLE;
+  return OPEN_STREET_MAP_STYLE;
 }
 
 export function MapView({
