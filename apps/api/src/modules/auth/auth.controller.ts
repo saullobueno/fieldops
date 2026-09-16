@@ -6,6 +6,7 @@ import { z } from "zod";
 import { CurrentActor, RequirePermissions } from "./auth.decorators.js";
 import { SESSION_COOKIE_NAME, SESSION_TTL_MS } from "./auth.guard.js";
 import { AuthService } from "./auth.service.js";
+import { resolveWebBaseUrl } from "./web-base-url.js";
 
 const loginSchema = z.object({
   email: z.string().trim().email(),
@@ -103,7 +104,7 @@ export class AuthController {
     // aceitável para um projeto de portfólio/demo, não para produção real.
     const { resetToken } = await this.authService.forgotPassword(parsedBody.data.email);
 
-    return resetToken ? { resetLink: `${webBaseUrl()}/redefinir-senha?token=${resetToken}` } : {};
+    return resetToken ? { resetLink: `${resolveWebBaseUrl()}/redefinir-senha?token=${resetToken}` } : {};
   }
 
   @Post("reset-password")
@@ -153,8 +154,4 @@ function setSessionCookie(response: Response, token: string): void {
     sameSite: isProduction ? "none" : "lax",
     secure: isProduction
   });
-}
-
-function webBaseUrl(): string {
-  return process.env.FIELDOPS_WEB_BASE_URL ?? "http://localhost:3000";
 }

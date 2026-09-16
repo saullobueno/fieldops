@@ -6,6 +6,7 @@ import type pg from "pg";
 
 import { POSTGRES_POOL } from "../infrastructure/infrastructure.module.js";
 import { computeCredentialFingerprint, createActionToken } from "../auth/auth.guard.js";
+import { resolveWebBaseUrl } from "../auth/web-base-url.js";
 import { demoRoleOptions, demoUsers, findDemoUserByEmail, findDemoUserById } from "./users.demo-store.js";
 
 export interface InviteUserInput {
@@ -312,11 +313,7 @@ function buildInviteLink(userId: string, organizationId: string, currentPassword
     userId
   });
 
-  return `${webBaseUrl()}/convite?token=${token}`;
-}
-
-function webBaseUrl(): string {
-  return process.env.FIELDOPS_WEB_BASE_URL ?? "http://localhost:3000";
+  return `${resolveWebBaseUrl()}/convite?token=${token}`;
 }
 
 function isUniqueViolation(error: unknown): boolean {
