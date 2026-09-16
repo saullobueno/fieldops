@@ -16,8 +16,8 @@ Este roteiro prepara a validação real do FieldOps usando serviços com camada 
 
 Configure um Web Service apontando para este repositório.
 
-- Build command: `pnpm install --frozen-lockfile && pnpm --filter @fieldops/api build`
-- Start command: `pnpm --filter @fieldops/api start`
+- Build command: `pnpm install --frozen-lockfile --prod=false && pnpm --filter @fieldops/api build`
+- Start command: `pnpm --filter @fieldops/api start:render`
 - Health check path: `/health`
 
 Variáveis:
@@ -33,7 +33,7 @@ Variáveis:
 - `MAPS_PROVIDER_BASE_URL=https://router.project-osrm.org`
 - `SENTRY_DSN=<opcional>`
 
-O Render fornece `PORT`; a API usa essa variável automaticamente quando presente.
+O Render fornece `PORT`; a API usa essa variável automaticamente quando presente. O comando `start:render` roda a API via `tsx` para resolver corretamente os packages TypeScript do monorepo em runtime.
 
 ## Web e Mobile Web na Vercel
 
