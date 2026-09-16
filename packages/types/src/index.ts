@@ -436,6 +436,16 @@ export interface ChecklistFieldInput {
   readonly validation?: Record<string, unknown>;
 }
 
+export interface NamedOption {
+  readonly id: string;
+  readonly name: string;
+}
+
+export interface ReportFilterOptions {
+  readonly teams: readonly NamedOption[];
+  readonly territories: readonly NamedOption[];
+}
+
 export interface ReportKpis {
   readonly totalWorkOrders: number;
   readonly completedWorkOrders: number;

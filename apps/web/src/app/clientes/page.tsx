@@ -8,7 +8,8 @@ import type {
   CustomerDetail,
   CustomerListResponse,
   CustomerSite,
-  CustomerSummary
+  CustomerSummary,
+  NamedOption
 } from "@fieldops/types";
 import { AppShell, Button } from "@fieldops/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,13 +25,19 @@ export default function CustomersPage(): React.ReactNode {
   const queryClient = useQueryClient();
   const [limit, setLimit] = useState(pageSize);
   const [search, setSearch] = useState("");
+  const [territoryId, setTerritoryId] = useState("");
   const [selectedId, setSelectedId] = useState("00000000-0000-4000-8000-000000000301");
   const [selectedAssetId, setSelectedAssetId] = useState<string | undefined>(undefined);
   const [isCreating, setIsCreating] = useState(false);
+  const territoriesQuery = useQuery({
+    enabled: Boolean(session),
+    queryFn: fetchCustomerTerritories,
+    queryKey: ["customer-territories"]
+  });
   const listQuery = useQuery({
     enabled: Boolean(session),
-    queryFn: () => fetchCustomers({ limit, search }),
-    queryKey: ["customers", limit, search]
+    queryFn: () => fetchCustomers({ limit, search, territoryId }),
+    queryKey: ["customers", limit, search, territoryId]
   });
   const createMutation = useMutation({
     mutationFn: (input: CustomerWritePayload) => createCustomer(input),
@@ -86,6 +93,17 @@ export default function CustomersPage(): React.ReactNode {
               placeholder="Buscar por nome do cliente"
               value={search}
             />
+            <select
+              aria-label="Filtrar clientes por território"
+              className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+              onChange={(event) => setTerritoryId(event.target.value)}
+              value={territoryId}
+            >
+              <option value="">Todos os territórios</option>
+              {(territoriesQuery.data ?? []).map((territory) => (
+                <option key={territory.id} value={territory.id}>{territory.name}</option>
+              ))}
+            </select>
             <Button onClick={() => void listQuery.refetch()} variant="secondary">Atualizar</Button>
           </div>
           <div className="mt-4">
@@ -898,10 +916,13 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
   );
 }
 
-async function fetchCustomers(input: { limit: number; search: string }): Promise<CustomerListResponse> {
+async function fetchCustomers(input: { limit: number; search: string; territoryId: string }): Promise<CustomerListResponse> {
   const params = new URLSearchParams({ limit: String(input.limit), offset: "0" });
   if (input.search) {
     params.set("search", input.search);
+  }
+  if (input.territoryId) {
+    params.set("territoryId", input.territoryId);
   }
 
   const response = await apiFetch(`/customers?${params.toString()}`);
@@ -911,6 +932,16 @@ async function fetchCustomers(input: { limit: number; search: string }): Promise
   }
 
   return response.json() as Promise<CustomerListResponse>;
+}
+
+async function fetchCustomerTerritories(): Promise<readonly NamedOption[]> {
+  const response = await apiFetch("/customers/territories");
+
+  if (!response.ok) {
+    throw new Error("Falha ao carregar territórios.");
+  }
+
+  return response.json() as Promise<readonly NamedOption[]>;
 }
 
 async function fetchCustomerDetail(id: string): Promise<CustomerDetail> {

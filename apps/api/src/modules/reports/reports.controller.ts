@@ -1,6 +1,6 @@
 import { BadRequestException, Controller, Get, Inject, Query, UnauthorizedException } from "@nestjs/common";
 import type { AuthenticatedActor } from "@fieldops/auth";
-import type { ReportOverview } from "@fieldops/types";
+import type { ReportFilterOptions, ReportOverview } from "@fieldops/types";
 import { z } from "zod";
 
 import { CurrentActor, RequirePermissions } from "../auth/auth.decorators.js";
@@ -42,6 +42,13 @@ export class ReportsController {
       territoryId: parsedQuery.data.territoryId,
       to
     });
+  }
+
+  @Get("filters")
+  @RequirePermissions("report:read")
+  async getFilterOptions(@CurrentActor() actor: AuthenticatedActor | undefined): Promise<ReportFilterOptions> {
+    const currentActor = requireActor(actor);
+    return this.reportsService.getFilterOptions(currentActor.organizationId);
   }
 }
 

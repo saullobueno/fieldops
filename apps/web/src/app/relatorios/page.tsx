@@ -2,6 +2,7 @@
 
 import type {
   ReportDailyVolumeItem,
+  ReportFilterOptions,
   ReportOverview,
   ReportStatusBreakdownItem,
   ReportTeamComplianceItem,
@@ -15,17 +16,6 @@ import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../../lib/api-client";
 import { useRequireAuth } from "../../lib/use-require-auth";
 
-const teamOptions = [
-  { label: "Todas as equipes", value: "" },
-  { label: "Equipe Centro", value: "00000000-0000-4000-8000-000000000201" }
-] as const;
-
-const territoryOptions = [
-  { label: "Todos os territórios", value: "" },
-  { label: "Centro", value: "00000000-0000-4000-8000-000000000801" },
-  { label: "Oeste", value: "00000000-0000-4000-8000-000000000802" }
-] as const;
-
 const chartColors = ["#0E5F4B", "#3E8E7E", "#9A5B00", "#B42318", "#4F5A55"];
 
 export default function ReportsPage(): React.ReactNode {
@@ -35,6 +25,11 @@ export default function ReportsPage(): React.ReactNode {
   const [teamId, setTeamId] = useState("");
   const [territoryId, setTerritoryId] = useState("");
 
+  const filtersQuery = useQuery({
+    enabled: Boolean(session),
+    queryFn: fetchFilterOptions,
+    queryKey: ["reports-filters"]
+  });
   const overviewQuery = useQuery({
     enabled: Boolean(session),
     queryFn: () => fetchOverview({ from, teamId, territoryId, to }),
@@ -80,8 +75,9 @@ export default function ReportsPage(): React.ReactNode {
               onChange={(event) => setTeamId(event.target.value)}
               value={teamId}
             >
-              {teamOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+              <option value="">Todas as equipes</option>
+              {(filtersQuery.data?.teams ?? []).map((team) => (
+                <option key={team.id} value={team.id}>{team.name}</option>
               ))}
             </select>
             <select
@@ -90,8 +86,9 @@ export default function ReportsPage(): React.ReactNode {
               onChange={(event) => setTerritoryId(event.target.value)}
               value={territoryId}
             >
-              {territoryOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
+              <option value="">Todos os territórios</option>
+              {(filtersQuery.data?.territories ?? []).map((territory) => (
+                <option key={territory.id} value={territory.id}>{territory.name}</option>
               ))}
             </select>
             <Button onClick={() => void overviewQuery.refetch()} variant="secondary">Atualizar</Button>
@@ -337,6 +334,16 @@ function escapeCsvCell(value: string): string {
   }
 
   return `"${value.replaceAll("\"", "\"\"")}"`;
+}
+
+async function fetchFilterOptions(): Promise<ReportFilterOptions> {
+  const response = await apiFetch("/reports/filters");
+
+  if (!response.ok) {
+    throw new Error("Falha ao carregar opções de filtro do relatório.");
+  }
+
+  return response.json() as Promise<ReportFilterOptions>;
 }
 
 async function fetchOverview(input: { from: string; to: string; teamId: string; territoryId: string }): Promise<ReportOverview> {

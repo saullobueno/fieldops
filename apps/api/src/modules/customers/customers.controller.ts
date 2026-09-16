@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Inject, Param, Patch, Post, Query, UnauthorizedException } from "@nestjs/common";
 import type { AuthenticatedActor } from "@fieldops/auth";
-import type { CustomerDetail, CustomerListResponse } from "@fieldops/types";
+import type { CustomerDetail, CustomerListResponse, NamedOption } from "@fieldops/types";
 import { z } from "zod";
 
 import { CurrentActor, RequirePermissions } from "../auth/auth.decorators.js";
@@ -9,7 +9,8 @@ import { CustomersService } from "./customers.service.js";
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   offset: z.coerce.number().int().min(0).default(0),
-  search: z.string().optional()
+  search: z.string().optional(),
+  territoryId: z.string().trim().min(1).optional()
 });
 
 const writeBodySchema = z.object({
@@ -77,6 +78,13 @@ export class CustomersController {
       organizationId: currentActor.organizationId,
       ...parsedQuery.data
     });
+  }
+
+  @Get("territories")
+  @RequirePermissions("customer:read")
+  async listTerritories(@CurrentActor() actor: AuthenticatedActor | undefined): Promise<readonly NamedOption[]> {
+    const currentActor = requireActor(actor);
+    return this.customersService.listTerritories(currentActor.organizationId);
   }
 
   @Get(":id")

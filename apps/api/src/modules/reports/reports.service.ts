@@ -1,7 +1,9 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
 import { calculateSlaComplianceRate } from "@fieldops/domain";
 import type {
+  NamedOption,
   ReportDailyVolumeItem,
+  ReportFilterOptions,
   ReportKpis,
   ReportOverview,
   ReportStatusBreakdownItem,
@@ -64,6 +66,29 @@ export class ReportsService {
       return await this.getOverviewFromDatabase(filter);
     } catch {
       return demoOverview(filter);
+    }
+  }
+
+  async getFilterOptions(organizationId: string): Promise<ReportFilterOptions> {
+    if (!this.postgresPool) {
+      return demoFilterOptions();
+    }
+
+    try {
+      const [teams, territories] = await Promise.all([
+        this.postgresPool.query<NamedOption>(
+          `select id, name from teams where organization_id = $1 order by name asc`,
+          [organizationId]
+        ),
+        this.postgresPool.query<NamedOption>(
+          `select id, name from territories where organization_id = $1 order by name asc`,
+          [organizationId]
+        )
+      ]);
+
+      return { teams: teams.rows, territories: territories.rows };
+    } catch {
+      return demoFilterOptions();
     }
   }
 
@@ -196,6 +221,19 @@ function toTechnicianUtilizationItem(row: TechnicianUtilizationRow): ReportTechn
 function toDateOnly(value: Date | string): string {
   const date = value instanceof Date ? value : new Date(value);
   return date.toISOString().slice(0, 10);
+}
+
+function demoFilterOptions(): ReportFilterOptions {
+  return {
+    teams: [
+      { id: "00000000-0000-4000-8000-000000000201", name: "Equipe Centro" },
+      { id: "00000000-0000-4000-8000-000000000202", name: "Equipe Oeste" }
+    ],
+    territories: [
+      { id: "00000000-0000-4000-8000-000000000801", name: "Centro" },
+      { id: "00000000-0000-4000-8000-000000000802", name: "Oeste" }
+    ]
+  };
 }
 
 function demoOverview(filter: ReportFilter): ReportOverview {
