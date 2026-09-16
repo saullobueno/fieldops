@@ -40,27 +40,27 @@ function toRouteCollection(routes: readonly MapRoute[]): RouteFeatureCollection 
   };
 }
 
-const CARTO_FALLBACK_STYLE_URL = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
-
-// Último recurso sem chave para manter a demo navegável mesmo se os estilos
-// públicos estiverem indisponíveis.
-const MINIMAL_FALLBACK_STYLE: maplibregl.StyleSpecification = {
+const CARTO_RASTER_STYLE: maplibregl.StyleSpecification = {
   glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-  layers: [{ id: "osm-raster", source: "osm", type: "raster" }],
+  layers: [{ id: "carto-raster", source: "carto", type: "raster" }],
   sources: {
-    osm: {
-      attribution: "© OpenStreetMap contributors",
+    carto: {
+      attribution: "© OpenStreetMap contributors © CARTO",
       tileSize: 256,
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tiles: [
+        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png"
+      ],
       type: "raster"
     }
   },
   version: 8
 };
 
-function mapStyle(): string | maplibregl.StyleSpecification {
-  const key = process.env.NEXT_PUBLIC_MAPTILER_KEY;
-  return key ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}` : CARTO_FALLBACK_STYLE_URL;
+function mapStyle(): maplibregl.StyleSpecification {
+  return CARTO_RASTER_STYLE;
 }
 
 export function MapView({
@@ -81,7 +81,6 @@ export function MapView({
       return;
     }
 
-    let fallbackStep = 0;
     const map = new maplibregl.Map({
       attributionControl: false,
       center: [-46.633308, -23.55052],
@@ -89,25 +88,11 @@ export function MapView({
       style: mapStyle(),
       zoom: 10
     });
-    const handleMapError = (): void => {
-      if (fallbackStep === 0 && process.env.NEXT_PUBLIC_MAPTILER_KEY) {
-        fallbackStep = 1;
-        map.setStyle(CARTO_FALLBACK_STYLE_URL);
-        return;
-      }
 
-      if (fallbackStep <= 1) {
-        fallbackStep = 2;
-        map.setStyle(MINIMAL_FALLBACK_STYLE);
-      }
-    };
-
-    map.on("error", handleMapError);
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     mapRef.current = map;
 
     return () => {
-      map.off("error", handleMapError);
       map.remove();
       mapRef.current = undefined;
     };
