@@ -40,14 +40,25 @@ function toRouteCollection(routes: readonly MapRoute[]): RouteFeatureCollection 
   };
 }
 
-// Estilo público do MapLibre (sem necessidade de chave) usado até
-// NEXT_PUBLIC_MAPTILER_KEY ser configurada. Com a chave, troca para o
-// estilo real do MapTiler (free tier).
-const FALLBACK_STYLE_URL = "https://demotiles.maplibre.org/style.json";
+// Fallback sem chave para manter a demo navegável mesmo quando o provedor
+// configurado falha ou ainda não foi embutido no build da Vercel.
+const FALLBACK_STYLE: maplibregl.StyleSpecification = {
+  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  layers: [{ id: "osm-raster", source: "osm", type: "raster" }],
+  sources: {
+    osm: {
+      attribution: "© OpenStreetMap contributors",
+      tileSize: 256,
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      type: "raster"
+    }
+  },
+  version: 8
+};
 
-function styleUrl(): string {
+function mapStyle(): string | maplibregl.StyleSpecification {
   const key = process.env.NEXT_PUBLIC_MAPTILER_KEY;
-  return key ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}` : FALLBACK_STYLE_URL;
+  return key ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}` : FALLBACK_STYLE;
 }
 
 export function MapView({
@@ -68,17 +79,29 @@ export function MapView({
       return;
     }
 
+    let fallbackApplied = false;
     const map = new maplibregl.Map({
       attributionControl: false,
       center: [-46.633308, -23.55052],
       container: containerRef.current,
-      style: styleUrl(),
+      style: mapStyle(),
       zoom: 10
     });
+    const handleMapError = (): void => {
+      if (fallbackApplied || !process.env.NEXT_PUBLIC_MAPTILER_KEY) {
+        return;
+      }
+
+      fallbackApplied = true;
+      map.setStyle(FALLBACK_STYLE);
+    };
+
+    map.on("error", handleMapError);
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     mapRef.current = map;
 
     return () => {
+      map.off("error", handleMapError);
       map.remove();
       mapRef.current = undefined;
     };
@@ -104,15 +127,11 @@ export function MapView({
       });
     }
 
-    function renderMarkersAndRoutes(): void {
+    function renderMarkers(): void {
       for (const marker of markerInstancesRef.current) {
         marker.remove();
       }
       markerInstancesRef.current = [];
-
-      ensureRoutesLayer();
-      const routesSource = map!.getSource(ROUTES_SOURCE_ID) as maplibregl.GeoJSONSource;
-      void routesSource.setData(toRouteCollection(routes));
 
       if (markers.length === 0 || !map) {
         return;
@@ -142,11 +161,27 @@ export function MapView({
       }
     }
 
-    if (map.isStyleLoaded()) {
-      renderMarkersAndRoutes();
-    } else {
-      map.once("load", renderMarkersAndRoutes);
+    function renderRoutes(): void {
+      if (!map?.isStyleLoaded()) {
+        return;
+      }
+
+      ensureRoutesLayer();
+      const routesSource = map.getSource(ROUTES_SOURCE_ID) as maplibregl.GeoJSONSource;
+      void routesSource.setData(toRouteCollection(routes));
     }
+
+    renderMarkers();
+
+    if (map.isStyleLoaded()) {
+      renderRoutes();
+    } else {
+      map.once("load", renderRoutes);
+    }
+
+    return () => {
+      map.off("load", renderRoutes);
+    };
   }, [markers, routes]);
 
   return <div className={className} ref={containerRef} />;
