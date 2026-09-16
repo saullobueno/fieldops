@@ -32,13 +32,27 @@ export type WebEnv = z.infer<typeof webEnvSchema>;
 export type MobileWebEnv = z.infer<typeof mobileWebEnvSchema>;
 
 export function parseServerEnv(env: NodeJS.ProcessEnv): ServerEnv {
-  return serverEnvSchema.parse(env);
+  return parseEnv(serverEnvSchema, env, "server");
 }
 
 export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
-  return webEnvSchema.parse(env);
+  return parseEnv(webEnvSchema, env, "web");
 }
 
 export function parseMobileWebEnv(env: NodeJS.ProcessEnv): MobileWebEnv {
-  return mobileWebEnvSchema.parse(env);
+  return parseEnv(mobileWebEnvSchema, env, "mobile-web");
+}
+
+function parseEnv<TSchema extends z.ZodType>(schema: TSchema, env: NodeJS.ProcessEnv, label: string): z.infer<TSchema> {
+  const parsed = schema.safeParse(env);
+
+  if (parsed.success) {
+    return parsed.data;
+  }
+
+  const issues = parsed.error.issues
+    .map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
+    .join("; ");
+
+  throw new Error(`Configuração de ambiente inválida (${label}): ${issues}`);
 }
