@@ -103,7 +103,7 @@ export function AppShell({
 }: AppShellProps): ReactNode {
   return (
     <SidebarProvider>
-      <main className="flex min-h-screen bg-background text-foreground">
+      <main className="flex h-screen overflow-hidden bg-background text-foreground">
         <Sidebar>
           <SidebarHeader>
             <a className="flex items-center gap-2 overflow-hidden text-sm font-semibold tracking-wide" href="/">
@@ -155,7 +155,7 @@ export function AppShell({
             </SidebarFooter>
           ) : null}
         </Sidebar>
-        <section className="flex min-w-0 flex-1 flex-col">
+        <section className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-6 max-sm:px-4">
             <div className="min-w-0">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{headerEyebrow}</p>
@@ -179,7 +179,7 @@ export function AppShell({
               ) : null}
             </div>
           </header>
-          {children}
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
         </section>
       </main>
     </SidebarProvider>
