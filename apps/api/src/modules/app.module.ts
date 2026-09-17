@@ -18,6 +18,7 @@ import { RealtimeModule } from "./realtime/realtime.module.js";
 import { ReportsModule } from "./reports/reports.module.js";
 import { SyncModule } from "./sync/sync.module.js";
 import { TechnicianModule } from "./technician/technician.module.js";
+import { TechniciansModule } from "./technicians/technicians.module.js";
 import { WorkOrdersModule } from "./work-orders/work-orders.module.js";
 
 @Module({
@@ -38,6 +39,7 @@ import { WorkOrdersModule } from "./work-orders/work-orders.module.js";
     ReportsModule,
     SyncModule,
     TechnicianModule,
+    TechniciansModule,
     WorkOrdersModule
   ],
   controllers: [HealthController],

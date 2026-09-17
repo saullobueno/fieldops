@@ -397,6 +397,51 @@ export interface DispatchAssignmentResult {
   readonly score: number | null;
 }
 
+export interface TechnicianSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly email: string;
+  readonly status: string;
+  readonly skills: readonly string[];
+  readonly teamId: string | null;
+  readonly teamName: string | null;
+  readonly territoryId: string | null;
+  readonly territoryName: string | null;
+  readonly activeAssignmentsCount: number;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+  readonly locationUpdatedAt: string | null;
+}
+
+export interface TechnicianListResponse {
+  readonly items: readonly TechnicianSummary[];
+  readonly total: number;
+}
+
+export interface MapOverviewTechnician {
+  readonly id: string;
+  readonly name: string;
+  readonly status: string;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+}
+
+export interface MapOverviewWorkOrder {
+  readonly id: string;
+  readonly number: string;
+  readonly title: string;
+  readonly customer: string;
+  readonly status: string;
+  readonly slaDueAt: string | null;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+}
+
+export interface MapOverview {
+  readonly technicians: readonly MapOverviewTechnician[];
+  readonly workOrders: readonly MapOverviewWorkOrder[];
+}
+
 export interface AssetDetail {
   readonly id: string;
   readonly organizationId: string;
