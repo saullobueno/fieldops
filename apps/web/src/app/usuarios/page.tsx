@@ -63,7 +63,7 @@ export default function UsersPage(): React.ReactNode {
       userLabel={session.userName}
     >
       <div className="grid flex-1 gap-5 p-6 xl:grid-cols-[1fr_360px] max-sm:p-4">
-        <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+        <section className="rounded-lg border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">Usuários da organização</h2>
           <div className="mt-4">
             {usersQuery.isLoading ? <StateMessage message="Carregando usuários..." /> : null}
@@ -82,7 +82,7 @@ export default function UsersPage(): React.ReactNode {
           </div>
         </section>
 
-        <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+        <section className="rounded-lg border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">Convidar usuário</h2>
           <div className="mt-4">
             <InviteForm
@@ -91,12 +91,12 @@ export default function UsersPage(): React.ReactNode {
               roles={rolesQuery.data ?? []}
             />
             {inviteMutation.isError ? (
-              <p className="mt-2 text-sm text-[#B42318]">
+              <p className="mt-2 text-sm text-destructive">
                 {inviteMutation.error instanceof Error ? inviteMutation.error.message : "Não foi possível convidar o usuário."}
               </p>
             ) : null}
             {inviteLink ? (
-              <div className="mt-4 rounded-md border border-[#0E5F4B] bg-[#EEF5F1] p-3 text-xs text-[#0E5F4B]">
+              <div className="mt-4 rounded-md border border-primary bg-accent p-3 text-xs text-primary">
                 <p className="font-semibold">Modo demo: link de convite</p>
                 <p className="mt-1 break-all">
                   Este projeto não tem envio de email configurado — copie o link abaixo e envie manualmente.
@@ -131,15 +131,15 @@ function UserTable({
   return (
     <div className="space-y-2">
       {users.map((user) => (
-        <div className="rounded-md border border-[#D8DEDA] bg-white p-3 text-sm" key={user.id}>
+        <div className="rounded-md border border-border bg-card p-3 text-sm" key={user.id}>
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="font-medium">{user.name}</p>
-              <p className="text-xs text-[#66736D]">{user.email}</p>
+              <p className="text-xs text-muted-foreground">{user.email}</p>
             </div>
-            <span className="text-xs font-semibold text-[#4F5A55]">{statusLabel[user.status]}</span>
+            <span className="text-xs font-semibold text-muted-foreground">{statusLabel[user.status]}</span>
           </div>
-          <p className="mt-2 text-xs text-[#66736D]">
+          <p className="mt-2 text-xs text-muted-foreground">
             {user.roles.length > 0 ? user.roles.map((role) => role.name).join(", ") : "Sem papel atribuído"}
           </p>
           <div className="mt-2 flex gap-2">
@@ -226,13 +226,13 @@ function InviteForm({
 function StateMessage({ message, tone = "neutral" }: { message: string; tone?: "neutral" | "error" }): React.ReactNode {
   const className =
     tone === "error"
-      ? "rounded-md border border-[#F4B5A9] bg-[#FFF5F3] p-4 text-sm text-[#8A1F11]"
-      : "rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]";
+      ? "rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+      : "rounded-md border border-border bg-muted p-4 text-sm text-muted-foreground";
 
   return <div className={className}>{message}</div>;
 }
 
-const inputClassName = "h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]";
+const inputClassName = "h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring";
 
 async function fetchUsers(): Promise<readonly UserAccountSummary[]> {
   const response = await apiFetch("/admin/users");

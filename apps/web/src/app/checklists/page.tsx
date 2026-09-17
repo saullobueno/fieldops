@@ -9,7 +9,7 @@ import type {
   ChecklistTemplateSummary,
   ChecklistVersionSummary
 } from "@fieldops/types";
-import { AppShell, Button } from "@fieldops/ui";
+import { AppShell, Button, EmptyState, ErrorState, LoadingState } from "@fieldops/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -100,7 +100,7 @@ export default function ChecklistTemplatesPage(): React.ReactNode {
       userLabel={session.userName}
     >
       <div className="grid flex-1 gap-5 p-6 xl:grid-cols-[320px_1fr] max-sm:p-4">
-        <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+        <section className="rounded-lg border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">Templates</h2>
           <div className="mt-4">
             <TemplateListState onRetry={() => void listQuery.refetch()} query={listQuery}>
@@ -111,7 +111,7 @@ export default function ChecklistTemplatesPage(): React.ReactNode {
           </div>
         </section>
         {activeId ? <TemplateDetailPanel id={activeId} /> : (
-          <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+          <section className="rounded-lg border border-border bg-card p-4">
             <EmptyState message="Selecione um template para ver os campos." />
           </section>
         )}
@@ -139,15 +139,15 @@ function TemplateList({
         <button
           className={
             item.id === selectedId
-              ? "block w-full rounded-md border border-[#0E5F4B] bg-[#EEF5F1] p-3 text-left text-sm"
-              : "block w-full rounded-md border border-[#D8DEDA] bg-white p-3 text-left text-sm hover:bg-[#F4F6F5]"
+              ? "block w-full rounded-md border border-primary bg-accent p-3 text-left text-sm"
+              : "block w-full rounded-md border border-border bg-card p-3 text-left text-sm hover:bg-background"
           }
           key={item.id}
           onClick={() => onSelect(item.id)}
           type="button"
         >
           <p className="font-medium">{item.name}</p>
-          <p className="mt-1 text-xs text-[#66736D]">
+          <p className="mt-1 text-xs text-muted-foreground">
             {item.latestVersion ? `Versão ${item.latestVersion}` : "Sem versão publicada"} · {item.isActive ? "Ativo" : "Inativo"}
           </p>
         </button>
@@ -202,7 +202,7 @@ function TemplateDetailPanel({ id }: { id: string }): React.ReactNode {
           onSubmit={(fields) => createVersionMutation.mutate(fields)}
         />
         {createVersionMutation.isError ? (
-          <p className="mt-2 text-sm text-[#B42318]">Não foi possível salvar a nova versão.</p>
+          <p className="mt-2 text-sm text-destructive">Não foi possível salvar a nova versão.</p>
         ) : null}
       </Panel>
     );
@@ -217,18 +217,18 @@ function TemplateDetailPanel({ id }: { id: string }): React.ReactNode {
         <EmptyState message="Este template ainda não tem uma versão publicada." />
       ) : (
         <div className="space-y-2">
-          <p className="text-xs text-[#66736D]">Versão {latestVersion.version}</p>
+          <p className="text-xs text-muted-foreground">Versão {latestVersion.version}</p>
           {latestVersion.fields.map((field) => (
-            <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm" key={field.id}>
+            <div className="rounded-md border border-border bg-muted p-3 text-sm" key={field.id}>
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium">{field.label}</p>
-                {field.isRequired ? <span className="text-xs font-semibold text-[#B42318]">Obrigatório</span> : null}
+                {field.isRequired ? <span className="text-xs font-semibold text-destructive">Obrigatório</span> : null}
               </div>
-              <p className="mt-1 text-xs text-[#66736D]">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {fieldTypeOptions.find((option) => option.value === field.type)?.label ?? field.type} · chave: {field.key}
               </p>
               {Object.keys(field.validation).length > 0 ? (
-                <p className="mt-1 font-mono text-xs text-[#66736D]">{JSON.stringify(field.validation)}</p>
+                <p className="mt-1 font-mono text-xs text-muted-foreground">{JSON.stringify(field.validation)}</p>
               ) : null}
             </div>
           ))}
@@ -274,7 +274,7 @@ function ChecklistFieldsForm({
       }}
     >
       {rows.map((row, index) => (
-        <div className="grid gap-2 rounded-md border border-[#D8DEDA] bg-white p-3 sm:grid-cols-2" key={row.rowId}>
+        <div className="grid gap-2 rounded-md border border-border bg-card p-3 sm:grid-cols-2" key={row.rowId}>
           <input
             aria-label="Chave do campo"
             className={inputClassName}
@@ -299,7 +299,7 @@ function ChecklistFieldsForm({
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
-          <label className="flex items-center gap-2 text-sm text-[#4F5A55]">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
             <input
               checked={row.isRequired}
               onChange={(event) => updateRow(index, { isRequired: event.target.checked })}
@@ -388,7 +388,7 @@ function Panel({
   title: string;
 }): React.ReactNode {
   return (
-    <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+    <section className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold">{title}</h2>
         {headerAction}
@@ -398,26 +398,7 @@ function Panel({
   );
 }
 
-function LoadingState({ message }: { message: string }): React.ReactNode {
-  return <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]">{message}</div>;
-}
-
-function EmptyState({ message }: { message: string }): React.ReactNode {
-  return <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]">{message}</div>;
-}
-
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }): React.ReactNode {
-  return (
-    <div className="rounded-md border border-[#F4B5A9] bg-[#FFF5F3] p-4 text-sm text-[#8A1F11]">
-      {message}
-      <div className="mt-3">
-        <Button onClick={onRetry} variant="secondary">Tentar novamente</Button>
-      </div>
-    </div>
-  );
-}
-
-const inputClassName = "h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]";
+const inputClassName = "h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring";
 
 async function fetchChecklistTemplates(): Promise<ChecklistTemplateListResponse> {
   const response = await apiFetch("/checklist-templates");

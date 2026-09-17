@@ -173,25 +173,25 @@ export default function TechnicianHomePage(): React.ReactNode {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col bg-zinc-50 text-zinc-950">
-      <header className="border-b border-zinc-200 bg-white px-4 py-4">
+    <main className="mx-auto flex min-h-screen max-w-md flex-col bg-muted text-foreground">
+      <header className="border-b border-border bg-card px-4 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium uppercase text-zinc-500">FieldOps Mobile</p>
+            <p className="text-xs font-medium uppercase text-muted-foreground">FieldOps Mobile</p>
             <h1 className="mt-1 text-xl font-semibold">Meu dia</h1>
           </div>
           <div className="flex items-center gap-2">
             <span
               className={
                 isOnline
-                  ? "rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700"
-                  : "rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700"
+                  ? "rounded-full bg-success/10 px-2 py-1 text-xs font-semibold text-success"
+                  : "rounded-full bg-warning/10 px-2 py-1 text-xs font-semibold text-warning"
               }
             >
               {isOnline ? "Online" : "Offline"}
             </span>
             <button
-              className="rounded-md px-2 py-1 text-xs font-medium text-zinc-500 hover:bg-zinc-100"
+              className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-accent"
               onClick={() => void logout()}
               type="button"
             >
@@ -201,8 +201,8 @@ export default function TechnicianHomePage(): React.ReactNode {
         </div>
       </header>
       <section className="flex flex-1 flex-col gap-4 p-4">
-        <div className="flex items-center justify-between rounded-lg border border-zinc-200 bg-white p-3">
-          <p className="text-sm text-zinc-600">{pendingCount} comando(s) pendente(s) de sincronização.</p>
+        <div className="flex items-center justify-between rounded-lg border border-border bg-card p-3">
+          <p className="text-sm text-muted-foreground">{pendingCount} comando(s) pendente(s) de sincronização.</p>
           <Button
             disabled={syncMutation.isPending || pendingCount === 0}
             onClick={() => syncMutation.mutate()}
@@ -225,9 +225,9 @@ export default function TechnicianHomePage(): React.ReactNode {
         ) : null}
 
         {workOrdersQuery.isLoading ? (
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-600">Carregando ordens...</div>
+          <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">Carregando ordens...</div>
         ) : workOrders.length === 0 ? (
-          <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-600">
+          <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
             Nenhuma ordem atribuída disponível{isOnline ? "." : " no cache offline."}
           </div>
         ) : (
@@ -257,7 +257,7 @@ function ConflictCard({
   onDiscard: (idempotencyKey: string) => void;
 }): React.ReactNode {
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+    <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
       <p className="font-medium">Conflito: {command.label}</p>
       <p className="mt-1 text-xs">{command.reason ?? "O servidor rejeitou este comando."}</p>
       <div className="mt-2">
@@ -343,13 +343,13 @@ function WorkOrderCard({
   }
 
   return (
-    <article className="rounded-lg border border-zinc-200 bg-white p-4">
+    <article className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold">{item.number}</p>
-        <span className="text-xs font-medium text-zinc-500">{formatStatus(item.status)}</span>
+        <span className="text-xs font-medium text-muted-foreground">{formatStatus(item.status)}</span>
       </div>
-      <p className="mt-1 text-sm text-zinc-700">{item.title}</p>
-      <p className="mt-1 text-xs text-zinc-500">{item.customer} · {item.site}</p>
+      <p className="mt-1 text-sm text-foreground">{item.title}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{item.customer} · {item.site}</p>
       <div className="mt-3 flex gap-2">
         {nextStatusMap[item.status] ? (
           <Button onClick={() => onAdvanceStatus(item)} variant="primary">
@@ -361,12 +361,12 @@ function WorkOrderCard({
         </Button>
       </div>
       {expanded ? (
-        <div className="mt-4 space-y-4 border-t border-zinc-200 pt-4">
+        <div className="mt-4 space-y-4 border-t border-border pt-4">
           {detailQuery.isLoading ? (
-            <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600">Carregando detalhes...</div>
+            <div className="rounded-md border border-border bg-muted p-3 text-sm text-muted-foreground">Carregando detalhes...</div>
           ) : null}
           {detailQuery.isError ? (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
               Não foi possível carregar os detalhes desta ordem.
             </div>
           ) : null}
@@ -396,7 +396,7 @@ function WorkOrderCard({
         }}
       >
         <textarea
-          className="min-h-16 resize-y rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-950"
+          className="min-h-16 resize-y rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-ring"
           onChange={(event) => onNoteChange(event.target.value)}
           placeholder="Adicionar nota de campo"
           value={noteDraft}
@@ -421,7 +421,7 @@ function ChecklistPanel({
   const [answers, setAnswers] = useState<Record<string, string | boolean>>(() => initialChecklistAnswers(checklist));
 
   if (checklist.length === 0) {
-    return <MobileSection title="Checklist"><p className="text-sm text-zinc-600">Nenhum checklist vinculado.</p></MobileSection>;
+    return <MobileSection title="Checklist"><p className="text-sm text-muted-foreground">Nenhum checklist vinculado.</p></MobileSection>;
   }
 
   return (
@@ -438,7 +438,7 @@ function ChecklistPanel({
 
           return (
             <label className="block text-sm" key={field.id}>
-              <span className="font-medium text-zinc-800">
+              <span className="font-medium text-foreground">
                 {field.label}{field.isRequired ? " *" : ""}
               </span>
               <ChecklistInput
@@ -487,7 +487,7 @@ function ChecklistInput({
           onChange={(event) => onChange(event.target.checked)}
           type="checkbox"
         />
-        <span className="text-zinc-600">Concluído</span>
+        <span className="text-muted-foreground">Concluído</span>
       </span>
     );
   }
@@ -520,10 +520,10 @@ function AttachmentPanel({
     <MobileSection title="Anexos">
       <div className="space-y-2">
         {attachments.length === 0 ? (
-          <p className="text-sm text-zinc-600">Nenhum anexo enviado.</p>
+          <p className="text-sm text-muted-foreground">Nenhum anexo enviado.</p>
         ) : (
           attachments.map((attachment) => (
-            <p className="rounded-md border border-zinc-200 bg-white p-2 text-sm" key={attachment.id}>
+            <p className="rounded-md border border-border bg-card p-2 text-sm" key={attachment.id}>
               {attachment.fileName} · {attachment.kind}
             </p>
           ))
@@ -546,8 +546,8 @@ function AttachmentPanel({
           }}
           type="file"
         />
-        {!disabled ? null : <p className="text-xs text-zinc-500">Envio disponível quando o dispositivo estiver online.</p>}
-        {error ? <p className="text-sm text-red-700">Não foi possível enviar o anexo.</p> : null}
+        {!disabled ? null : <p className="text-xs text-muted-foreground">Envio disponível quando o dispositivo estiver online.</p>}
+        {error ? <p className="text-sm text-destructive">Não foi possível enviar o anexo.</p> : null}
       </div>
     </MobileSection>
   );
@@ -611,7 +611,7 @@ function SignaturePanel({
         value={signerName}
       />
       <canvas
-        className="mt-2 h-32 w-full touch-none rounded-md border border-zinc-300 bg-white"
+        className="mt-2 h-32 w-full touch-none rounded-md border border-input bg-card"
         height={160}
         onPointerDown={(event) => {
           const canvas = canvasRef.current;
@@ -636,16 +636,16 @@ function SignaturePanel({
         </Button>
         <Button onClick={clearCanvas} type="button" variant="secondary">Limpar</Button>
       </div>
-      {!disabled ? null : <p className="mt-2 text-xs text-zinc-500">Assinatura exige conexão para enviar a imagem.</p>}
-      {error ? <p className="mt-2 text-sm text-red-700">Não foi possível salvar a assinatura.</p> : null}
+      {!disabled ? null : <p className="mt-2 text-xs text-muted-foreground">Assinatura exige conexão para enviar a imagem.</p>}
+      {error ? <p className="mt-2 text-sm text-destructive">Não foi possível salvar a assinatura.</p> : null}
     </MobileSection>
   );
 }
 
 function MobileSection({ children, title }: { children: React.ReactNode; title: string }): React.ReactNode {
   return (
-    <section className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-      <h2 className="mb-2 text-xs font-semibold uppercase text-zinc-500">{title}</h2>
+    <section className="rounded-lg border border-border bg-muted p-3">
+      <h2 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{title}</h2>
       {children}
     </section>
   );
@@ -738,7 +738,7 @@ function formatStatus(status: string): string {
   return labels[status] ?? status;
 }
 
-const mobileInputClassName = "mt-1 h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-950";
+const mobileInputClassName = "mt-1 h-9 w-full rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring";
 
 function initialChecklistAnswers(checklist: readonly WorkOrderChecklistItem[]): Record<string, string | boolean> {
   const answers: Record<string, string | boolean> = {};

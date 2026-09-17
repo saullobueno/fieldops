@@ -69,13 +69,13 @@ export default function AcceptInvitePage(): React.ReactNode {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#F4F6F5] px-4 text-[#151A18]">
-      <div className="w-full max-w-sm rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-6 shadow-sm">
-        <p className="text-xs font-medium uppercase text-[#66736D]">FieldOps</p>
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
+      <div className="w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-sm">
+        <p className="text-xs font-medium uppercase text-muted-foreground">FieldOps</p>
         <h1 className="mt-1 text-lg font-semibold">Definir senha de acesso</h1>
 
         {!token ? (
-          <p className="mt-4 rounded-md border border-[#F4B5A9] bg-[#FFF5F3] px-3 py-2 text-sm text-[#8A1F11]">
+          <p className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             Link de convite inválido. Peça um novo convite ao administrador.
           </p>
         ) : (
@@ -84,7 +84,7 @@ export default function AcceptInvitePage(): React.ReactNode {
               Email
               <input
                 autoComplete="username"
-                className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+                className="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring"
                 onChange={(event) => setEmail(event.target.value)}
                 required
                 type="email"
@@ -95,7 +95,7 @@ export default function AcceptInvitePage(): React.ReactNode {
               Nova senha
               <input
                 autoComplete="new-password"
-                className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+                className="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring"
                 minLength={8}
                 onChange={(event) => setPassword(event.target.value)}
                 required
@@ -107,7 +107,7 @@ export default function AcceptInvitePage(): React.ReactNode {
               Confirmar senha
               <input
                 autoComplete="new-password"
-                className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+                className="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring"
                 minLength={8}
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 required
@@ -117,7 +117,7 @@ export default function AcceptInvitePage(): React.ReactNode {
             </label>
 
             {error ? (
-              <p className="rounded-md border border-[#F4B5A9] bg-[#FFF5F3] px-3 py-2 text-sm text-[#8A1F11]">{error}</p>
+              <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
             ) : null}
 
             <Button disabled={isSubmitting} type="submit" variant="primary">

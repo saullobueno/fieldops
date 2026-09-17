@@ -8,7 +8,7 @@ import type {
   ReportTeamComplianceItem,
   ReportTechnicianUtilizationItem
 } from "@fieldops/types";
-import { AppShell, Button } from "@fieldops/ui";
+import { AppShell, Button, EmptyState, ErrorState, LoadingState } from "@fieldops/ui";
 import { useQuery } from "@tanstack/react-query";
 import * as echarts from "echarts";
 import { useEffect, useRef, useState } from "react";
@@ -49,21 +49,21 @@ export default function ReportsPage(): React.ReactNode {
       userLabel={session.userName}
     >
       <div className="flex flex-1 flex-col gap-5 p-6 max-sm:p-4">
-        <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+        <section className="rounded-lg border border-border bg-card p-4">
           <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-sm text-[#66736D]">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
               De
               <input
-                className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+                className="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring"
                 onChange={(event) => setFrom(event.target.value)}
                 type="date"
                 value={from}
               />
             </label>
-            <label className="flex items-center gap-2 text-sm text-[#66736D]">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
               Até
               <input
-                className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+                className="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring"
                 onChange={(event) => setTo(event.target.value)}
                 type="date"
                 value={to}
@@ -71,7 +71,7 @@ export default function ReportsPage(): React.ReactNode {
             </label>
             <select
               aria-label="Filtrar relatório por equipe"
-              className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+              className="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring"
               onChange={(event) => setTeamId(event.target.value)}
               value={teamId}
             >
@@ -82,7 +82,7 @@ export default function ReportsPage(): React.ReactNode {
             </select>
             <select
               aria-label="Filtrar relatório por território"
-              className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+              className="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring"
               onChange={(event) => setTerritoryId(event.target.value)}
               value={territoryId}
             >
@@ -246,7 +246,7 @@ function OverviewState({
 
 function Panel({ children, title }: { children: React.ReactNode; title: string }): React.ReactNode {
   return (
-    <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+    <section className="rounded-lg border border-border bg-card p-4">
       <h2 className="text-sm font-semibold">{title}</h2>
       <div className="mt-4">{children}</div>
     </section>
@@ -255,29 +255,10 @@ function Panel({ children, title }: { children: React.ReactNode; title: string }
 
 function KpiTile({ label, value }: { label: string; value: string }): React.ReactNode {
   return (
-    <article className="min-h-24 rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
-      <p className="text-xs font-medium text-[#66736D]">{label}</p>
+    <article className="min-h-24 rounded-lg border border-border bg-card p-4">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <div className="mt-3 text-2xl font-semibold">{value}</div>
     </article>
-  );
-}
-
-function LoadingState({ message }: { message: string }): React.ReactNode {
-  return <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]">{message}</div>;
-}
-
-function EmptyState({ message }: { message: string }): React.ReactNode {
-  return <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]">{message}</div>;
-}
-
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }): React.ReactNode {
-  return (
-    <div className="rounded-md border border-[#F4B5A9] bg-[#FFF5F3] p-4 text-sm text-[#8A1F11]">
-      {message}
-      <div className="mt-3">
-        <Button onClick={onRetry} variant="secondary">Tentar novamente</Button>
-      </div>
-    </div>
   );
 }
 

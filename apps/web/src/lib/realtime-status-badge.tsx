@@ -8,10 +8,10 @@ const labels: Record<RealtimeConnectionStatus, string> = {
 };
 
 const toneClass: Record<RealtimeConnectionStatus, string> = {
-  connected: "bg-[#E4F3EC] text-[#0E6F4F]",
-  connecting: "bg-[#F4F6F5] text-[#66736D]",
-  reconnecting: "bg-[#FFF4D6] text-[#8A4B00]",
-  stale: "bg-[#FDE8E4] text-[#B42318]"
+  connected: "bg-success/10 text-success",
+  connecting: "bg-background text-muted-foreground",
+  reconnecting: "bg-warning/10 text-warning",
+  stale: "bg-destructive/10 text-destructive"
 };
 
 export function RealtimeStatusBadge({ status }: { status: RealtimeConnectionStatus }): React.ReactNode {

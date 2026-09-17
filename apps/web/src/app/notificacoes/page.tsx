@@ -51,15 +51,15 @@ export default function NotificationsPage(): React.ReactNode {
       userLabel={session.userName}
     >
       <div className="grid flex-1 gap-5 p-6 xl:grid-cols-[1fr_360px] max-sm:p-4">
-        <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+        <section className="rounded-lg border border-border bg-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold">Fila de eventos</h2>
-              <p className="mt-1 text-sm text-[#66736D]">Alertas de SLA, atribuições e sincronização.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Alertas de SLA, atribuições e sincronização.</p>
             </div>
             <select
               aria-label="Filtrar notificações por status"
-              className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+              className="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring"
               onChange={(event) => setStatus(event.target.value as NotificationStatus | "")}
               value={status}
             >
@@ -72,7 +72,7 @@ export default function NotificationsPage(): React.ReactNode {
             <NotificationsState query={listQuery} />
           </div>
         </section>
-        <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+        <section className="rounded-lg border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">Preferências</h2>
           <div className="mt-4">
             <PreferencesState query={preferencesQuery} />
@@ -85,7 +85,7 @@ export default function NotificationsPage(): React.ReactNode {
 
 function UnreadBadge({ count }: { count: number }): React.ReactNode {
   return (
-    <span className="rounded-full bg-[#E4F3EC] px-3 py-1 text-xs font-semibold text-[#0E6F4F]">
+    <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success">
       {count} não lidas
     </span>
   );
@@ -127,17 +127,17 @@ function NotificationCard({ item }: { item: NotificationItem }): React.ReactNode
   });
 
   return (
-    <article className="grid grid-cols-[4px_1fr] overflow-hidden rounded-lg border border-[#D8DEDA] bg-[#F9FAF9]">
-      <div className={item.status === "unread" ? "bg-[#B85C38]" : "bg-[#C7D0CB]"} />
+    <article className="grid grid-cols-[4px_1fr] overflow-hidden rounded-lg border border-border bg-muted">
+      <div className={item.status === "unread" ? "bg-[#B85C38]" : "bg-input"} />
       <div className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase text-[#66736D]">{formatType(item.type)}</p>
+            <p className="text-xs font-semibold uppercase text-muted-foreground">{formatType(item.type)}</p>
             <h3 className="mt-1 text-sm font-semibold">{item.title}</h3>
           </div>
-          <span className="font-mono text-xs text-[#66736D]">{formatDateTime(item.createdAt)}</span>
+          <span className="font-mono text-xs text-muted-foreground">{formatDateTime(item.createdAt)}</span>
         </div>
-        <p className="mt-2 text-sm leading-5 text-[#4F5A55]">{item.body}</p>
+        <p className="mt-2 text-sm leading-5 text-muted-foreground">{item.body}</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {item.status !== "read" ? (
             <Button
@@ -158,7 +158,7 @@ function NotificationCard({ item }: { item: NotificationItem }): React.ReactNode
             </Button>
           ) : null}
         </div>
-        {mutation.isError ? <p className="mt-3 text-sm text-[#B42318]">Não foi possível atualizar a notificação.</p> : null}
+        {mutation.isError ? <p className="mt-3 text-sm text-destructive">Não foi possível atualizar a notificação.</p> : null}
       </div>
     </article>
   );
@@ -213,12 +213,12 @@ function PreferenceRow({
   });
 
   return (
-    <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm">
+    <div className="rounded-md border border-border bg-muted p-3 text-sm">
       <div className="flex items-center justify-between gap-3">
         <p className="font-medium">{formatType(item.type)}</p>
         <button
           aria-pressed={item.enabled}
-          className={item.enabled ? "rounded-full bg-[#E4F3EC] px-3 py-1 text-xs font-semibold text-[#0E6F4F]" : "rounded-full bg-[#E9EEEB] px-3 py-1 text-xs font-semibold text-[#66736D]"}
+          className={item.enabled ? "rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success" : "rounded-full bg-accent px-3 py-1 text-xs font-semibold text-muted-foreground"}
           disabled={mutation.isPending}
           onClick={() => mutation.mutate()}
           type="button"
@@ -226,21 +226,21 @@ function PreferenceRow({
           {item.enabled ? "Ativa" : "Pausada"}
         </button>
       </div>
-      <p className="mt-2 text-xs text-[#66736D]">
+      <p className="mt-2 text-xs text-muted-foreground">
         {item.channels.map(formatChannel).join(", ")}
       </p>
-      {mutation.isError ? <p className="mt-2 text-xs text-[#B42318]">Não foi possível salvar.</p> : null}
+      {mutation.isError ? <p className="mt-2 text-xs text-destructive">Não foi possível salvar.</p> : null}
     </div>
   );
 }
 
 function StateBox({ message }: { message: string }): React.ReactNode {
-  return <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]">{message}</div>;
+  return <div className="rounded-md border border-border bg-muted p-4 text-sm text-muted-foreground">{message}</div>;
 }
 
 function ErrorBox({ message, onRetry }: { message: string; onRetry: () => void }): React.ReactNode {
   return (
-    <div className="rounded-md border border-[#F4B5A9] bg-[#FFF5F3] p-4 text-sm text-[#8A1F11]">
+    <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
       {message}
       <div className="mt-3">
         <Button onClick={onRetry} variant="secondary">Tentar novamente</Button>

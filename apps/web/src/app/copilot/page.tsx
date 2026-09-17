@@ -1,7 +1,7 @@
 "use client";
 
 import type { CopilotApprovalResult, CopilotRecommendation } from "@fieldops/types";
-import { AppShell, Button } from "@fieldops/ui";
+import { AppShell, Button, EmptyState } from "@fieldops/ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -53,7 +53,7 @@ export default function CopilotPage(): React.ReactNode {
       userLabel={session.userName}
     >
       <div className="flex flex-1 flex-col gap-5 p-6 max-sm:p-4">
-        <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+        <section className="rounded-lg border border-border bg-card p-4">
           <form
             className="flex flex-col gap-3"
             onSubmit={(event) => {
@@ -65,7 +65,7 @@ export default function CopilotPage(): React.ReactNode {
             }}
           >
             <textarea
-              className="min-h-20 resize-y rounded-md border border-[#C7D0CB] bg-white px-3 py-2 text-sm outline-none focus:border-[#0E5F4B]"
+              className="min-h-20 resize-y rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring"
               onChange={(event) => setQuestion(event.target.value)}
               placeholder="Pergunte sobre risco de SLA, despacho ou utilização de técnicos..."
               value={question}
@@ -73,7 +73,7 @@ export default function CopilotPage(): React.ReactNode {
             <div className="flex flex-wrap gap-2">
               {suggestedQuestions.map((item) => (
                 <button
-                  className="rounded-full border border-[#C7D0CB] bg-white px-3 py-1 text-xs text-[#4F5A55] hover:bg-[#F4F6F5]"
+                  className="rounded-full border border-input bg-card px-3 py-1 text-xs text-muted-foreground hover:bg-background"
                   key={item}
                   onClick={() => setQuestion(item)}
                   type="button"
@@ -88,7 +88,7 @@ export default function CopilotPage(): React.ReactNode {
               </Button>
             </div>
             {askMutation.isError ? (
-              <p className="text-sm text-[#B42318]">Não foi possível consultar o copiloto.</p>
+              <p className="text-sm text-destructive">Não foi possível consultar o copiloto.</p>
             ) : null}
           </form>
         </section>
@@ -115,24 +115,24 @@ function RecommendationPanel({
   recommendation: CopilotRecommendation;
 }): React.ReactNode {
   return (
-    <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+    <section className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold">{recommendation.title}</h2>
-        <span className="rounded-full bg-[#E9EEEB] px-2 py-1 text-xs font-medium text-[#4F5A55]">
+        <span className="rounded-full bg-accent px-2 py-1 text-xs font-medium text-muted-foreground">
           {recommendation.source === "groq" ? "Groq" : "Heurística demo"}
         </span>
       </div>
-      <p className="mt-2 text-sm text-[#151A18]">{recommendation.summary}</p>
+      <p className="mt-2 text-sm text-foreground">{recommendation.summary}</p>
 
       {recommendation.suggestedAction ? (
-        <div className="mt-4 rounded-md border border-[#C7D0CB] bg-[#F9FAF9] p-3">
+        <div className="mt-4 rounded-md border border-input bg-muted p-3">
           <p className="text-sm font-medium">
             Sugestão: reatribuir {recommendation.suggestedAction.workOrderNumber} para{" "}
             {recommendation.suggestedAction.technicianName}
           </p>
-          <p className="mt-1 text-xs text-[#66736D]">{recommendation.suggestedAction.reason}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{recommendation.suggestedAction.reason}</p>
           {recommendation.approvedAt ? (
-            <p className="mt-3 text-sm font-medium text-[#0E6F4F]">
+            <p className="mt-3 text-sm font-medium text-success">
               Aprovado às {formatHour(recommendation.approvedAt)} — atribuição criada.
             </p>
           ) : (
@@ -140,14 +140,14 @@ function RecommendationPanel({
               <Button disabled={isApproving} onClick={onApprove} variant="primary">
                 {isApproving ? "Aprovando..." : "Aprovar reatribuição"}
               </Button>
-              <p className="mt-2 text-xs text-[#66736D]">
+              <p className="mt-2 text-xs text-muted-foreground">
                 Nenhuma alteração é feita sem esta aprovação explícita.
               </p>
             </div>
           )}
         </div>
       ) : (
-        <p className="mt-3 text-xs text-[#66736D]">Esta recomendação não sugere nenhuma alteração de atribuição.</p>
+        <p className="mt-3 text-xs text-muted-foreground">Esta recomendação não sugere nenhuma alteração de atribuição.</p>
       )}
 
       <DetailSection title="Evidências consultadas">
@@ -156,9 +156,9 @@ function RecommendationPanel({
         ) : (
           <div className="space-y-2">
             {recommendation.evidence.map((item, index) => (
-              <details className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm" key={`${item.toolName}-${index}`}>
+              <details className="rounded-md border border-border bg-muted p-3 text-sm" key={`${item.toolName}-${index}`}>
                 <summary className="cursor-pointer font-medium">{formatToolName(item.toolName)}</summary>
-                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs text-[#4F5A55]">
+                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs text-muted-foreground">
                   {JSON.stringify(item.output, null, 2)}
                 </pre>
               </details>
@@ -173,14 +173,10 @@ function RecommendationPanel({
 function DetailSection({ children, title }: { children: React.ReactNode; title: string }): React.ReactNode {
   return (
     <section className="mt-4">
-      <h3 className="mb-2 text-xs font-semibold uppercase text-[#66736D]">{title}</h3>
+      <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{title}</h3>
       <div className="space-y-2">{children}</div>
     </section>
   );
-}
-
-function EmptyState({ message }: { message: string }): React.ReactNode {
-  return <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]">{message}</div>;
 }
 
 function formatToolName(name: string): string {

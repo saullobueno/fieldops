@@ -7,7 +7,7 @@ import type {
   DispatchTechnicianLane,
   DispatchUnassignedWorkOrder
 } from "@fieldops/types";
-import { AppShell, Button } from "@fieldops/ui";
+import { AppShell, Button, EmptyState, ErrorState, LoadingState } from "@fieldops/ui";
 import { DndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -86,7 +86,7 @@ export default function DispatchPage(): React.ReactNode {
           <RealtimeStatusBadge status={status} />
           <input
             aria-label="Selecionar data do despacho"
-            className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+            className="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring"
             onChange={(event) => setDate(event.target.value)}
             type="date"
             value={date}
@@ -101,7 +101,7 @@ export default function DispatchPage(): React.ReactNode {
     >
       <div className="flex flex-1 flex-col gap-4 p-6 max-sm:p-4">
         {feedback ? (
-          <div className="rounded-md border border-[#F4B5A9] bg-[#FFF5F3] p-3 text-sm text-[#8A1F11]">{feedback}</div>
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{feedback}</div>
         ) : null}
         <BoardState onRetry={() => void boardQuery.refetch()} query={boardQuery}>
           {(board) => (
@@ -139,29 +139,29 @@ function DispatchBoardContent({
 
   return (
     <div className="flex flex-1 flex-col gap-5">
-      <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+      <section className="rounded-lg border border-border bg-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold">Mapa do despacho</h2>
-            <p className="mt-1 text-xs text-[#66736D]">
+            <p className="mt-1 text-xs text-muted-foreground">
               Técnicos e ordens pendentes com coordenadas conhecidas.
               {routes.length > 0 ? " Arraste em andamento: linhas mostram a distância até cada técnico." : ""}
             </p>
           </div>
-          <p className="text-xs text-[#66736D]">{markers.length} marcador(es)</p>
+          <p className="text-xs text-muted-foreground">{markers.length} marcador(es)</p>
         </div>
         {markers.length === 0 ? (
           <div className="mt-3">
             <EmptyState message="Sem coordenadas disponíveis para esta data." />
           </div>
         ) : (
-          <MapView className="mt-3 h-72 w-full overflow-hidden rounded-lg border border-[#C7D0CB]" markers={markers} routes={routes} />
+          <MapView className="mt-3 h-72 w-full overflow-hidden rounded-lg border border-input" markers={markers} routes={routes} />
         )}
       </section>
       <div className="grid flex-1 gap-5 xl:grid-cols-[300px_1fr]">
-        <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+        <section className="rounded-lg border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">Fila de despacho</h2>
-          <p className="mt-1 text-xs text-[#66736D]">Arraste uma ordem para a faixa do técnico desejado.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Arraste uma ordem para a faixa do técnico desejado.</p>
           <div className="mt-4 space-y-3">
             {board.unassigned.length === 0 ? (
               <EmptyState message="Nenhuma ordem pendente de despacho hoje." />
@@ -191,7 +191,7 @@ function UnassignedCard({ item }: { item: DispatchUnassignedWorkOrder }): React.
 
   return (
     <div
-      className="cursor-grab rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm shadow-sm active:cursor-grabbing"
+      className="cursor-grab rounded-md border border-border bg-muted p-3 text-sm shadow-sm active:cursor-grabbing"
       data-testid={`unassigned-card-${item.number}`}
       ref={setNodeRef}
       style={style}
@@ -200,15 +200,15 @@ function UnassignedCard({ item }: { item: DispatchUnassignedWorkOrder }): React.
     >
       <div className="flex items-center justify-between gap-2">
         <p className="font-medium">{item.number}</p>
-        <span className="text-xs font-semibold text-[#9A5B00]">{item.priority}</span>
+        <span className="text-xs font-semibold text-warning">{item.priority}</span>
       </div>
-      <p className="mt-1 text-[#151A18]">{item.title}</p>
-      <p className="mt-1 text-xs text-[#66736D]">{item.customer}</p>
-      <p className="mt-2 font-mono text-xs text-[#66736D]">
+      <p className="mt-1 text-foreground">{item.title}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{item.customer}</p>
+      <p className="mt-2 font-mono text-xs text-muted-foreground">
         {formatHour(item.scheduledStartAt)} – {formatHour(item.scheduledEndAt)} · SLA {formatHour(item.slaDueAt)}
       </p>
       {item.requiredSkills.length > 0 ? (
-        <p className="mt-1 text-xs text-[#66736D]">Habilidades: {item.requiredSkills.join(", ")}</p>
+        <p className="mt-1 text-xs text-muted-foreground">Habilidades: {item.requiredSkills.join(", ")}</p>
       ) : null}
     </div>
   );
@@ -229,36 +229,36 @@ function TechnicianLane({
     <section
       className={
         isOver
-          ? "rounded-lg border-2 border-dashed border-[#0E5F4B] bg-[#EEF5F1] p-4"
-          : "rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4"
+          ? "rounded-lg border-2 border-dashed border-primary bg-accent p-4"
+          : "rounded-lg border border-border bg-card p-4"
       }
       data-testid={`technician-lane-${technician.name}`}
       ref={setNodeRef}
     >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">{technician.name}</h3>
-        <span className="text-xs text-[#66736D]">{formatTechnicianStatus(technician.status)}</span>
+        <span className="text-xs text-muted-foreground">{formatTechnicianStatus(technician.status)}</span>
       </div>
       {candidate || candidateLoading ? (
-        <div className="mt-3 rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-xs">
+        <div className="mt-3 rounded-md border border-border bg-muted p-3 text-xs">
           {candidate ? (
             <>
               <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-[#0E5F4B]">{candidate.score} pts</span>
-                <span className={candidate.hasConflict ? "text-[#B42318]" : "text-[#66736D]"}>
+                <span className="font-semibold text-primary">{candidate.score} pts</span>
+                <span className={candidate.hasConflict ? "text-destructive" : "text-muted-foreground"}>
                   {candidate.hasConflict ? "Conflito" : "Disponível"}
                 </span>
               </div>
-              <p className="mt-1 text-[#66736D]">
+              <p className="mt-1 text-muted-foreground">
                 Deslocamento: {candidate.estimatedTravelMinutes ?? "--"} min
               </p>
             </>
           ) : (
-            <span className="text-[#66736D]">Calculando candidato...</span>
+            <span className="text-muted-foreground">Calculando candidato...</span>
           )}
         </div>
       ) : null}
-      <p className="mt-1 text-xs text-[#66736D]">{technician.skills.join(", ") || "Sem habilidades cadastradas"}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{technician.skills.join(", ") || "Sem habilidades cadastradas"}</p>
       <div className="mt-3 space-y-2">
         {technician.assignments.length === 0 ? (
           <EmptyState message="Sem ordens atribuídas." />
@@ -272,10 +272,10 @@ function TechnicianLane({
 
 function AssignmentCard({ assignment }: { assignment: DispatchAssignmentCard }): React.ReactNode {
   return (
-    <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm">
+    <div className="rounded-md border border-border bg-muted p-3 text-sm">
       <p className="font-medium">{assignment.workOrderNumber} · {assignment.title}</p>
-      <p className="text-xs text-[#66736D]">{assignment.customer}</p>
-      <p className="mt-1 font-mono text-xs text-[#66736D]">
+      <p className="text-xs text-muted-foreground">{assignment.customer}</p>
+      <p className="mt-1 font-mono text-xs text-muted-foreground">
         {formatHour(assignment.startsAt)} – {formatHour(assignment.endsAt)}
       </p>
     </div>
@@ -304,25 +304,6 @@ function BoardState({
   }
 
   return children(query.data);
-}
-
-function LoadingState({ message }: { message: string }): React.ReactNode {
-  return <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]">{message}</div>;
-}
-
-function EmptyState({ message }: { message: string }): React.ReactNode {
-  return <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]">{message}</div>;
-}
-
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }): React.ReactNode {
-  return (
-    <div className="rounded-md border border-[#F4B5A9] bg-[#FFF5F3] p-4 text-sm text-[#8A1F11]">
-      {message}
-      <div className="mt-3">
-        <Button onClick={onRetry} variant="secondary">Tentar novamente</Button>
-      </div>
-    </div>
-  );
 }
 
 function formatHour(value: string): string {

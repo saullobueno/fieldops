@@ -128,8 +128,8 @@ export function MapView({
         const element = document.createElement("div");
         element.className =
           item.tone === "risk"
-            ? "rounded-full border-2 border-white bg-[#B42318] px-2 py-1 text-xs font-semibold text-white shadow-sm"
-            : "rounded-full border-2 border-white bg-[#0E5F4B] px-2 py-1 text-xs font-semibold text-white shadow-sm";
+            ? "rounded-full border-2 border-white bg-destructive px-2 py-1 text-xs font-semibold text-white shadow-sm"
+            : "rounded-full border-2 border-white bg-primary px-2 py-1 text-xs font-semibold text-white shadow-sm";
         element.textContent = item.label;
 
         const marker = new maplibregl.Marker({ element })

@@ -36,7 +36,7 @@ export default function ProfilePage(): React.ReactNode {
       userLabel={session.userName}
     >
       <div className="max-w-sm p-6 max-sm:p-4">
-        <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+        <section className="rounded-lg border border-border bg-card p-4">
           <h2 className="text-sm font-semibold">Trocar senha</h2>
           <form
             className="mt-4 flex flex-col gap-3"
@@ -93,15 +93,15 @@ export default function ProfilePage(): React.ReactNode {
             </label>
 
             {formError ? (
-              <p className="rounded-md border border-[#F4B5A9] bg-[#FFF5F3] px-3 py-2 text-sm text-[#8A1F11]">{formError}</p>
+              <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{formError}</p>
             ) : null}
             {changePasswordMutation.isError ? (
-              <p className="rounded-md border border-[#F4B5A9] bg-[#FFF5F3] px-3 py-2 text-sm text-[#8A1F11]">
+              <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 Senha atual incorreta.
               </p>
             ) : null}
             {changePasswordMutation.isSuccess ? (
-              <p className="rounded-md border border-[#0E5F4B] bg-[#EEF5F1] px-3 py-2 text-sm text-[#0E5F4B]">
+              <p className="rounded-md border border-primary bg-accent px-3 py-2 text-sm text-primary">
                 Senha alterada com sucesso.
               </p>
             ) : null}
@@ -116,7 +116,7 @@ export default function ProfilePage(): React.ReactNode {
   );
 }
 
-const inputClassName = "h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]";
+const inputClassName = "h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring";
 
 async function changePassword(input: { currentPassword: string; newPassword: string }): Promise<void> {
   const response = await apiFetch("/auth/change-password", { body: JSON.stringify(input), method: "POST" });

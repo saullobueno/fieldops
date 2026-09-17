@@ -54,9 +54,9 @@ export default function LoginPage(): React.ReactNode {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center bg-zinc-50 px-4 text-zinc-950">
-      <div className="w-full rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-medium uppercase text-zinc-500">FieldOps Mobile</p>
+    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center bg-muted px-4 text-foreground">
+      <div className="w-full rounded-lg border border-border bg-card p-6 shadow-sm">
+        <p className="text-xs font-medium uppercase text-muted-foreground">FieldOps Mobile</p>
         <h1 className="mt-1 text-lg font-semibold">Entrar</h1>
 
         <form className="mt-5 flex flex-col gap-3" onSubmit={(event) => void handleSubmit(event)}>
@@ -64,7 +64,7 @@ export default function LoginPage(): React.ReactNode {
             Email
             <input
               autoComplete="username"
-              className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-950"
+              className="h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring"
               onChange={(event) => setEmail(event.target.value)}
               required
               type="email"
@@ -76,7 +76,7 @@ export default function LoginPage(): React.ReactNode {
             Senha
             <input
               autoComplete="current-password"
-              className="h-9 rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-950"
+              className="h-9 rounded-md border border-border bg-card px-3 text-sm outline-none focus:border-ring"
               onChange={(event) => setPassword(event.target.value)}
               required
               type="password"
@@ -85,7 +85,7 @@ export default function LoginPage(): React.ReactNode {
           </label>
 
           {error ? (
-            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>
+            <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
           ) : null}
 
           <Button disabled={isSubmitting} type="submit" variant="primary">
@@ -93,7 +93,7 @@ export default function LoginPage(): React.ReactNode {
           </Button>
         </form>
 
-        <p className="mt-4 text-xs text-zinc-500">
+        <p className="mt-4 text-xs text-muted-foreground">
           Modo demo: ana@acmefield.example ou bruno@acmefield.example, senha demo1234.
         </p>
       </div>

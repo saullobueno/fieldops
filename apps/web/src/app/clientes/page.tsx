@@ -11,7 +11,7 @@ import type {
   CustomerSummary,
   NamedOption
 } from "@fieldops/types";
-import { AppShell, Button } from "@fieldops/ui";
+import { AppShell, Button, EmptyState, ErrorState, LoadingState } from "@fieldops/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -72,7 +72,7 @@ export default function CustomersPage(): React.ReactNode {
       userLabel={session.userName}
     >
       <div className="grid flex-1 gap-5 p-6 xl:grid-cols-[1fr_420px] max-sm:p-4">
-        <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+        <section className="rounded-lg border border-border bg-card p-4">
           {isCreating ? (
             <div className="mb-4">
               <CustomerForm
@@ -82,21 +82,21 @@ export default function CustomersPage(): React.ReactNode {
                 submitLabel="Criar cliente"
               />
               {createMutation.isError ? (
-                <p className="mt-2 text-sm text-[#B42318]">Não foi possível criar o cliente.</p>
+                <p className="mt-2 text-sm text-destructive">Não foi possível criar o cliente.</p>
               ) : null}
             </div>
           ) : null}
           <div className="flex flex-wrap items-center gap-3">
             <input
               aria-label="Buscar clientes"
-              className="h-9 min-w-64 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+              className="h-9 min-w-64 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring"
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar por nome do cliente"
               value={search}
             />
             <select
               aria-label="Filtrar clientes por território"
-              className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+              className="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring"
               onChange={(event) => setTerritoryId(event.target.value)}
               value={territoryId}
             >
@@ -105,7 +105,7 @@ export default function CustomersPage(): React.ReactNode {
                 <option key={territory.id} value={territory.id}>{territory.name}</option>
               ))}
             </select>
-            <label className="flex items-center gap-2 text-sm text-[#4F5A55]">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <input
                 checked={activeContractOnly}
                 onChange={(event) => setActiveContractOnly(event.target.checked)}
@@ -211,7 +211,7 @@ function CustomerForm({
 
   return (
     <form
-      className="flex flex-col gap-2 rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3"
+      className="flex flex-col gap-2 rounded-md border border-border bg-muted p-3"
       onSubmit={(event) => {
         event.preventDefault();
         const trimmedName = name.trim();
@@ -228,7 +228,7 @@ function CustomerForm({
     >
       <input
         aria-label="Nome do cliente"
-        className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+        className="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring"
         onChange={(event) => setName(event.target.value)}
         placeholder="Nome do cliente"
         required
@@ -236,14 +236,14 @@ function CustomerForm({
       />
       <input
         aria-label="Referência externa"
-        className="h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]"
+        className="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring"
         onChange={(event) => setExternalRef(event.target.value)}
         placeholder="Referência externa (opcional)"
         value={externalRef}
       />
       <textarea
         aria-label="Notas"
-        className="min-h-16 resize-y rounded-md border border-[#C7D0CB] bg-white px-3 py-2 text-sm outline-none focus:border-[#0E5F4B]"
+        className="min-h-16 resize-y rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring"
         onChange={(event) => setNotes(event.target.value)}
         placeholder="Notas (opcional)"
         value={notes}
@@ -285,7 +285,7 @@ function SiteForm({
 
   return (
     <form
-      className="grid gap-2 rounded-md border border-[#D8DEDA] bg-white p-3"
+      className="grid gap-2 rounded-md border border-border bg-card p-3"
       onSubmit={(event) => {
         event.preventDefault();
         if (!name.trim() || !addressLine1.trim() || !city.trim() || !state.trim() || !postalCode.trim()) {
@@ -347,7 +347,7 @@ function ContactForm({
 
   return (
     <form
-      className="grid gap-2 rounded-md border border-[#D8DEDA] bg-white p-3"
+      className="grid gap-2 rounded-md border border-border bg-card p-3"
       onSubmit={(event) => {
         event.preventDefault();
         if (!name.trim()) {
@@ -390,7 +390,7 @@ function ContractForm({
 
   return (
     <form
-      className="grid gap-2 rounded-md border border-[#D8DEDA] bg-white p-3"
+      className="grid gap-2 rounded-md border border-border bg-card p-3"
       onSubmit={(event) => {
         event.preventDefault();
         if (!name.trim() || !startsOn) {
@@ -437,7 +437,7 @@ function AssetForm({
 
   return (
     <form
-      className="grid gap-2 rounded-md border border-[#D8DEDA] bg-white p-3"
+      className="grid gap-2 rounded-md border border-border bg-card p-3"
       onSubmit={(event) => {
         event.preventDefault();
         if (!name.trim() || !siteId) {
@@ -504,7 +504,7 @@ function CustomerTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
-        <thead className="text-xs uppercase text-[#66736D]">
+        <thead className="text-xs uppercase text-muted-foreground">
           <tr>
             <th className="pb-2 font-medium">Cliente</th>
             <th className="pb-2 font-medium">Referência</th>
@@ -512,15 +512,15 @@ function CustomerTable({
             <th className="pb-2 font-medium">Ordens abertas</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#E1E6E3]">
+        <tbody className="divide-y divide-border">
           {items.map((item) => (
             <tr
-              className={item.id === selectedId ? "bg-[#EEF5F1]" : "hover:bg-[#F4F6F5]"}
+              className={item.id === selectedId ? "bg-accent" : "hover:bg-background"}
               key={item.id}
             >
               <td className="py-3">
                 <button
-                  className="font-medium text-[#0E5F4B] underline-offset-4 hover:underline"
+                  className="font-medium text-primary underline-offset-4 hover:underline"
                   onClick={() => onSelect(item.id)}
                   type="button"
                 >
@@ -607,7 +607,7 @@ function CustomerDetailPanel({
           submitLabel="Salvar alterações"
         />
         {updateMutation.isError ? (
-          <p className="mt-2 text-sm text-[#B42318]">Não foi possível salvar as alterações.</p>
+          <p className="mt-2 text-sm text-destructive">Não foi possível salvar as alterações.</p>
         ) : null}
       </Panel>
     );
@@ -619,7 +619,7 @@ function CustomerDetailPanel({
       title={detail.name}
     >
       <div className="space-y-5">
-        {detail.notes ? <p className="text-sm text-[#66736D]">{detail.notes}</p> : null}
+        {detail.notes ? <p className="text-sm text-muted-foreground">{detail.notes}</p> : null}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <Metric label="Referência" value={detail.externalRef ?? "--"} />
           <Metric label="Ordens abertas" value={String(detail.openWorkOrdersCount)} />
@@ -637,7 +637,7 @@ function CustomerDetailPanel({
             />
           ) : null}
           {detail.sites.length === 0 ? <EmptyState message="Nenhum local cadastrado." /> : detail.sites.map((site) => (
-            <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm" key={site.id}>
+            <div className="rounded-md border border-border bg-muted p-3 text-sm" key={site.id}>
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium">{site.name}</p>
                 <div className="flex gap-2">
@@ -654,7 +654,7 @@ function CustomerDetailPanel({
                   </Button>
                 </div>
               </div>
-              <p className="text-[#66736D]">{site.addressLine1} · {site.city}/{site.state}</p>
+              <p className="text-muted-foreground">{site.addressLine1} · {site.city}/{site.state}</p>
               {activeForm === `site:${site.id}` ? (
                 <div className="mt-3">
                   <SiteForm
@@ -682,7 +682,7 @@ function CustomerDetailPanel({
             />
           ) : null}
           {detail.contacts.length === 0 ? <EmptyState message="Nenhum contato cadastrado." /> : detail.contacts.map((contact) => (
-            <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm" key={contact.id}>
+            <div className="rounded-md border border-border bg-muted p-3 text-sm" key={contact.id}>
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium">{contact.name}</p>
                 <div className="flex gap-2">
@@ -699,7 +699,7 @@ function CustomerDetailPanel({
                   </Button>
                 </div>
               </div>
-              <p className="text-[#66736D]">{contact.title ?? "Sem cargo"} · {contact.email ?? "sem e-mail"} · {contact.phone ?? "sem telefone"}</p>
+              <p className="text-muted-foreground">{contact.title ?? "Sem cargo"} · {contact.email ?? "sem e-mail"} · {contact.phone ?? "sem telefone"}</p>
               {activeForm === `contact:${contact.id}` ? (
                 <div className="mt-3">
                   <ContactForm
@@ -727,7 +727,7 @@ function CustomerDetailPanel({
             />
           ) : null}
           {detail.contracts.length === 0 ? <EmptyState message="Nenhum contrato cadastrado." /> : detail.contracts.map((contract) => (
-            <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm" key={contract.id}>
+            <div className="rounded-md border border-border bg-muted p-3 text-sm" key={contract.id}>
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium">{contract.name}</p>
                 <div className="flex gap-2">
@@ -744,7 +744,7 @@ function CustomerDetailPanel({
                   </Button>
                 </div>
               </div>
-              <p className="text-[#66736D]">{contract.startsOn} até {contract.endsOn ?? "sem término"}</p>
+              <p className="text-muted-foreground">{contract.startsOn} até {contract.endsOn ?? "sem término"}</p>
               {activeForm === `contract:${contract.id}` ? (
                 <div className="mt-3">
                   <ContractForm
@@ -776,13 +776,13 @@ function CustomerDetailPanel({
             <div
               className={
                 asset.id === assetId
-                  ? "rounded-md border border-[#0E5F4B] bg-[#EEF5F1] p-3 text-sm"
-                  : "rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm"
+                  ? "rounded-md border border-primary bg-accent p-3 text-sm"
+                  : "rounded-md border border-border bg-muted p-3 text-sm"
               }
               key={asset.id}
             >
               <div className="flex items-center justify-between gap-3">
-                <button className="text-left font-medium text-[#0E5F4B] underline-offset-4 hover:underline" onClick={() => onSelectAsset(asset.id)} type="button">
+                <button className="text-left font-medium text-primary underline-offset-4 hover:underline" onClick={() => onSelectAsset(asset.id)} type="button">
                   {asset.name}
                 </button>
                 <div className="flex gap-2">
@@ -799,7 +799,7 @@ function CustomerDetailPanel({
                   </Button>
                 </div>
               </div>
-              <p className="text-[#66736D]">{asset.siteName} · {asset.model ?? "sem modelo"} · {asset.serialNumber ?? "sem série"}</p>
+              <p className="text-muted-foreground">{asset.siteName} · {asset.model ?? "sem modelo"} · {asset.serialNumber ?? "sem série"}</p>
               {activeForm === `asset:${asset.id}` ? (
                 <div className="mt-3">
                   <AssetForm
@@ -843,32 +843,32 @@ function AssetMaintenanceContent({ asset }: { asset: AssetDetail }): React.React
   return (
     <div className="space-y-4">
       <div>
-        <h4 className="mb-2 text-xs font-semibold uppercase text-[#66736D]">Linha do tempo</h4>
+        <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Linha do tempo</h4>
         {asset.maintenanceTimeline.length === 0 ? (
           <EmptyState message="Nenhum evento de manutenção registrado." />
         ) : (
           <div className="space-y-2">
             {asset.maintenanceTimeline.map((item) => (
-              <div className="border-l-2 border-[#C7D0CB] pl-3 text-sm" key={item.id}>
+              <div className="border-l-2 border-input pl-3 text-sm" key={item.id}>
                 <p className="font-medium">{item.title} · {item.workOrderNumber}</p>
-                <p className="text-[#66736D]">{item.description}</p>
+                <p className="text-muted-foreground">{item.description}</p>
               </div>
             ))}
           </div>
         )}
       </div>
       <div>
-        <h4 className="mb-2 text-xs font-semibold uppercase text-[#66736D]">Documentos</h4>
+        <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Documentos</h4>
         {asset.documents.length === 0 ? (
           <EmptyState message="Nenhum documento anexado." />
         ) : (
           <div className="space-y-2">
             {asset.documents.map((item) => (
-              <div className="flex items-center justify-between gap-3 rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm" key={item.id}>
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted p-3 text-sm" key={item.id}>
                 <p className="font-medium">{item.fileName}</p>
                 {item.signedUrl ? (
                   <a
-                    className="rounded-md border border-[#C7D0CB] bg-white px-3 py-2 text-sm font-medium text-[#151A18] hover:bg-[#F4F6F5]"
+                    className="rounded-md border border-input bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-background"
                     href={`${apiBaseUrl()}${item.signedUrl}`}
                     rel="noreferrer"
                     target="_blank"
@@ -919,7 +919,7 @@ function Panel({
   title: string;
 }): React.ReactNode {
   return (
-    <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+    <section className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold">{title}</h2>
         {headerAction}
@@ -941,7 +941,7 @@ function DetailSection({
   return (
     <section>
       <div className="mb-2 flex items-center justify-between gap-3">
-        <h3 className="text-xs font-semibold uppercase text-[#66736D]">{title}</h3>
+        <h3 className="text-xs font-semibold uppercase text-muted-foreground">{title}</h3>
         {action}
       </div>
       <div className="space-y-2">{children}</div>
@@ -951,28 +951,9 @@ function DetailSection({
 
 function Metric({ label, value }: { label: string; value: string }): React.ReactNode {
   return (
-    <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3">
-      <p className="text-xs text-[#66736D]">{label}</p>
+    <div className="rounded-md border border-border bg-muted p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 font-medium">{value}</p>
-    </div>
-  );
-}
-
-function LoadingState({ message }: { message: string }): React.ReactNode {
-  return <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]">{message}</div>;
-}
-
-function EmptyState({ message }: { message: string }): React.ReactNode {
-  return <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]">{message}</div>;
-}
-
-function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }): React.ReactNode {
-  return (
-    <div className="rounded-md border border-[#F4B5A9] bg-[#FFF5F3] p-4 text-sm text-[#8A1F11]">
-      {message}
-      <div className="mt-3">
-        <Button onClick={onRetry} variant="secondary">Tentar novamente</Button>
-      </div>
     </div>
   );
 }
@@ -1146,8 +1127,8 @@ async function fetchAssetDetail(id: string): Promise<AssetDetail> {
   return response.json() as Promise<AssetDetail>;
 }
 
-const inputClassName = "h-9 rounded-md border border-[#C7D0CB] bg-white px-3 text-sm outline-none focus:border-[#0E5F4B]";
-const textareaClassName = "min-h-16 resize-y rounded-md border border-[#C7D0CB] bg-white px-3 py-2 text-sm outline-none focus:border-[#0E5F4B]";
+const inputClassName = "h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-ring";
+const textareaClassName = "min-h-16 resize-y rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring";
 
 function parseOptionalNumber(value: string): number | null {
   const trimmed = value.trim();

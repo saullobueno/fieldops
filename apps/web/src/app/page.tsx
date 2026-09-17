@@ -90,15 +90,15 @@ function RealtimeEventsPanel({ events }: { events: readonly RealtimeEnvelope[] }
   return (
     <Panel title="Eventos em tempo real">
       {events.length === 0 ? (
-        <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]">
+        <div className="rounded-md border border-border bg-muted p-4 text-sm text-muted-foreground">
           Nenhum evento recebido ainda.
         </div>
       ) : (
         <div className="max-h-72 space-y-2 overflow-y-auto">
           {events.map((envelope) => (
-            <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3 text-sm" key={envelope.id}>
+            <div className="rounded-md border border-border bg-muted p-3 text-sm" key={envelope.id}>
               <p className="font-medium">{describeRealtimeEvent(envelope)}</p>
-              <p className="mt-1 font-mono text-xs text-[#66736D]">{formatEventTime(envelope.occurredAt)}</p>
+              <p className="mt-1 font-mono text-xs text-muted-foreground">{formatEventTime(envelope.occurredAt)}</p>
             </div>
           ))}
         </div>
@@ -143,15 +143,15 @@ function KpiWidget(): React.ReactNode {
 
 function KpiCard({ item }: { item: DashboardKpi }): React.ReactNode {
   const toneClass = {
-    danger: "text-[#B42318]",
-    good: "text-[#0E6F4F]",
-    neutral: "text-[#36413C]",
-    warning: "text-[#9A5B00]"
+    danger: "text-destructive",
+    good: "text-success",
+    neutral: "text-foreground",
+    warning: "text-warning"
   }[item.tone];
 
   return (
-    <article className="min-h-28 rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
-      <p className="text-xs font-medium text-[#66736D]">{item.label}</p>
+    <article className="min-h-28 rounded-lg border border-border bg-card p-4">
+      <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
       <div className="mt-3 text-2xl font-semibold">{item.value}</div>
       <p className={`mt-2 text-xs font-medium ${toneClass}`}>{item.trend}</p>
     </article>
@@ -165,7 +165,7 @@ function DispatchPreviewWidget(): React.ReactNode {
     <Panel title="Prévia do despacho">
       <WidgetState query={query} emptyMessage="Sem serviços no despacho." title="Prévia do despacho">
         {(payload) => (
-          <div className="divide-y divide-[#E1E6E3]">
+          <div className="divide-y divide-border">
             {payload.items.map((item) => (
               <DispatchRow item={item} key={item.workOrderNumber} />
             ))}
@@ -179,14 +179,14 @@ function DispatchPreviewWidget(): React.ReactNode {
 function DispatchRow({ item }: { item: DispatchPreviewItem }): React.ReactNode {
   return (
     <div className="grid grid-cols-[64px_1fr_auto] gap-3 py-3 text-sm max-sm:grid-cols-1">
-      <span className="font-mono text-[#0E5F4B]">{item.time}</span>
+      <span className="font-mono text-primary">{item.time}</span>
       <div>
         <p className="font-medium">
           {item.workOrderNumber} · {item.title}
         </p>
-        <p className="text-[#66736D]">{item.technician}</p>
+        <p className="text-muted-foreground">{item.technician}</p>
       </div>
-      <span className="text-xs font-medium text-[#36413C]">{item.status}</span>
+      <span className="text-xs font-medium text-foreground">{item.status}</span>
     </div>
   );
 }
@@ -208,16 +208,16 @@ function SlaRiskWidget(): React.ReactNode {
 }
 
 function SlaRiskRow({ item }: { item: SlaRiskItem }): React.ReactNode {
-  const riskClass = item.risk === "alto" ? "bg-[#FDE8E4] text-[#B42318]" : "bg-[#FFF4D6] text-[#8A4B00]";
+  const riskClass = item.risk === "alto" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning";
 
   return (
-    <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3">
+    <div className="rounded-md border border-border bg-muted p-3">
       <div className="flex items-center justify-between gap-3">
         <p className="font-medium">{item.workOrderNumber}</p>
         <span className={`rounded px-2 py-1 text-xs font-semibold ${riskClass}`}>{item.risk}</span>
       </div>
-      <p className="mt-1 text-sm text-[#66736D]">{item.customer}</p>
-      <p className="mt-2 font-mono text-sm text-[#151A18]">vence {item.dueAt}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{item.customer}</p>
+      <p className="mt-2 font-mono text-sm text-foreground">vence {item.dueAt}</p>
     </div>
   );
 }
@@ -243,7 +243,7 @@ function MapPreview({ items }: { items: readonly ActiveServiceMapItem[] }): Reac
     tone: item.status === "requires_review" ? "risk" : "default"
   }));
 
-  return <MapView className="h-64 w-full overflow-hidden rounded-lg border border-[#C7D0CB]" markers={markers} />;
+  return <MapView className="h-64 w-full overflow-hidden rounded-lg border border-input" markers={markers} />;
 }
 
 function RecentWorkOrdersWidget(): React.ReactNode {
@@ -255,7 +255,7 @@ function RecentWorkOrdersWidget(): React.ReactNode {
         {(payload) => (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="text-xs uppercase text-[#66736D]">
+              <thead className="text-xs uppercase text-muted-foreground">
                 <tr>
                   <th className="pb-2 font-medium">Ordem</th>
                   <th className="pb-2 font-medium">Cliente</th>
@@ -263,7 +263,7 @@ function RecentWorkOrdersWidget(): React.ReactNode {
                   <th className="pb-2 font-medium">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E1E6E3]">
+              <tbody className="divide-y divide-border">
                 {payload.items.map((item) => <RecentWorkOrderRow item={item} key={item.workOrderNumber} />)}
               </tbody>
             </table>
@@ -277,10 +277,10 @@ function RecentWorkOrdersWidget(): React.ReactNode {
 function RecentWorkOrderRow({ item }: { item: RecentWorkOrderItem }): React.ReactNode {
   return (
     <tr>
-      <td className="py-3 font-mono text-[#0E5F4B]">{item.workOrderNumber}</td>
+      <td className="py-3 font-mono text-primary">{item.workOrderNumber}</td>
       <td className="py-3">{item.customer}</td>
       <td className="py-3">{item.priority}</td>
-      <td className="py-3 text-[#66736D]">{item.status}</td>
+      <td className="py-3 text-muted-foreground">{item.status}</td>
     </tr>
   );
 }
@@ -303,10 +303,10 @@ function AiInsightsWidget(): React.ReactNode {
 
 function AiInsight({ item }: { item: AiInsightItem }): React.ReactNode {
   return (
-    <article className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3">
-      <p className="text-xs font-semibold uppercase text-[#0E5F4B]">{item.severity}</p>
+    <article className="rounded-md border border-border bg-muted p-3">
+      <p className="text-xs font-semibold uppercase text-primary">{item.severity}</p>
       <h3 className="mt-1 text-sm font-semibold">{item.title}</h3>
-      <p className="mt-2 text-sm leading-5 text-[#66736D]">{item.evidence}</p>
+      <p className="mt-2 text-sm leading-5 text-muted-foreground">{item.evidence}</p>
     </article>
   );
 }
@@ -329,25 +329,25 @@ function TechnicianUtilizationWidget(): React.ReactNode {
 
 function TechnicianUtilization({ item }: { item: TechnicianUtilizationItem }): React.ReactNode {
   return (
-    <article className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-3">
+    <article className="rounded-md border border-border bg-muted p-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">{item.technician}</h3>
         <span className="font-mono text-sm">{item.utilizationPercent}%</span>
       </div>
-      <div className="mt-3 h-2 rounded bg-[#E1E6E3]">
+      <div className="mt-3 h-2 rounded bg-border">
         <div
-          className="h-2 rounded bg-[#0E5F4B]"
+          className="h-2 rounded bg-primary"
           style={{ width: `${item.utilizationPercent}%` }}
         />
       </div>
-      <p className="mt-2 text-xs text-[#66736D]">{item.activeWorkOrders} ordens ativas</p>
+      <p className="mt-2 text-xs text-muted-foreground">{item.activeWorkOrders} ordens ativas</p>
     </article>
   );
 }
 
 function Panel({ children, title }: { children: React.ReactNode; title: string }): React.ReactNode {
   return (
-    <section className="rounded-lg border border-[#D8DEDA] bg-[#FBFCFB] p-4">
+    <section className="rounded-lg border border-border bg-card p-4">
       <h2 className="text-sm font-semibold">{title}</h2>
       <div className="mt-4">{children}</div>
     </section>
@@ -366,12 +366,12 @@ function WidgetState<TPayload extends DashboardWidgetPayload>({
   title: string;
 }): React.ReactNode {
   if (query.isLoading) {
-    return <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]">Carregando {title.toLowerCase()}...</div>;
+    return <div className="rounded-md border border-border bg-muted p-4 text-sm text-muted-foreground">Carregando {title.toLowerCase()}...</div>;
   }
 
   if (query.isError) {
     return (
-      <div className="rounded-md border border-[#F4B5A9] bg-[#FFF5F3] p-4 text-sm text-[#8A1F11]">
+      <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
         Não foi possível carregar {title.toLowerCase()}.
         <div className="mt-3">
           <Button onClick={() => void query.refetch()} variant="secondary">Tentar novamente</Button>
@@ -381,7 +381,7 @@ function WidgetState<TPayload extends DashboardWidgetPayload>({
   }
 
   if (!query.data || query.data.items.length === 0) {
-    return <div className="rounded-md border border-[#D8DEDA] bg-[#F9FAF9] p-4 text-sm text-[#66736D]">{emptyMessage}</div>;
+    return <div className="rounded-md border border-border bg-muted p-4 text-sm text-muted-foreground">{emptyMessage}</div>;
   }
 
   return children(query.data);

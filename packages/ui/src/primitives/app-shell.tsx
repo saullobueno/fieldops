@@ -1,25 +1,86 @@
+"use client";
+
 import type { ReactNode } from "react";
+import {
+  Bell,
+  BarChart3,
+  Building2,
+  CircleUserRound,
+  ClipboardList,
+  LayoutDashboard,
+  ListChecks,
+  LogOut,
+  Map,
+  Sparkles,
+  UserCog,
+  Users,
+  Waypoints
+} from "lucide-react";
+
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger
+} from "./sidebar";
 
 export interface AppShellNavItem {
   readonly href: string;
   readonly label: string;
+  readonly icon: ReactNode;
 }
 
-export const appShellNavItems: readonly AppShellNavItem[] = [
-  { href: "/", label: "Início" },
-  { href: "/despacho", label: "Despacho" },
-  { href: "/ordens", label: "Ordens" },
-  { href: "#", label: "Calendário" },
-  { href: "#", label: "Mapa" },
-  { href: "#", label: "Técnicos" },
-  { href: "/clientes", label: "Clientes" },
-  { href: "/relatorios", label: "Relatórios" },
-  { href: "/checklists", label: "Checklists" },
-  { href: "/copilot", label: "Copiloto" },
-  { href: "/notificacoes", label: "Notificações" },
-  { href: "/usuarios", label: "Usuários" },
-  { href: "/perfil", label: "Perfil" }
+export interface AppShellNavGroup {
+  readonly label: string;
+  readonly items: readonly AppShellNavItem[];
+}
+
+const iconProps = { "aria-hidden": true, size: 18 } as const;
+
+export const appShellNavGroups: readonly AppShellNavGroup[] = [
+  {
+    items: [
+      { href: "/", icon: <LayoutDashboard {...iconProps} />, label: "Início" },
+      { href: "/despacho", icon: <Waypoints {...iconProps} />, label: "Despacho" },
+      { href: "/ordens", icon: <ClipboardList {...iconProps} />, label: "Ordens" },
+      // { href: "/calendario", icon: <CalendarDays {...iconProps} />, label: "Calendário" }, // TODO: página de calendário ainda não existe
+      { href: "/mapa", icon: <Map {...iconProps} />, label: "Mapa" }
+    ],
+    label: "Operação"
+  },
+  {
+    items: [
+      { href: "/tecnicos", icon: <Users {...iconProps} />, label: "Técnicos" },
+      { href: "/clientes", icon: <Building2 {...iconProps} />, label: "Clientes" }
+    ],
+    label: "Equipe"
+  },
+  {
+    items: [
+      { href: "/relatorios", icon: <BarChart3 {...iconProps} />, label: "Relatórios" },
+      { href: "/checklists", icon: <ListChecks {...iconProps} />, label: "Checklists" },
+      { href: "/copilot", icon: <Sparkles {...iconProps} />, label: "Copiloto" }
+    ],
+    label: "Análise"
+  },
+  {
+    items: [
+      { href: "/notificacoes", icon: <Bell {...iconProps} />, label: "Notificações" },
+      { href: "/usuarios", icon: <UserCog {...iconProps} />, label: "Usuários" },
+      { href: "/perfil", icon: <CircleUserRound {...iconProps} />, label: "Perfil" }
+    ],
+    label: "Sistema"
+  }
 ];
+
+export const appShellNavItems: readonly AppShellNavItem[] = appShellNavGroups.flatMap((group) => group.items);
 
 export interface AppShellProps {
   readonly activeHref: string;
@@ -41,40 +102,73 @@ export function AppShell({
   userLabel
 }: AppShellProps): ReactNode {
   return (
-    <main className="min-h-screen bg-[#F4F6F5] text-[#151A18]">
-      <div className="grid min-h-screen grid-cols-[236px_1fr] max-lg:grid-cols-1">
-        <aside className="border-r border-[#D8DEDA] bg-[#FBFCFB] px-4 py-5 max-lg:hidden">
-          <a className="text-sm font-semibold tracking-wide" href="/">FieldOps</a>
-          <nav className="mt-6 flex flex-col gap-1" aria-label="Principal">
-            {appShellNavItems.map((item) => (
-              <a
-                className={
-                  item.href === activeHref
-                    ? "rounded-md bg-[#E9EEEB] px-3 py-2 text-sm font-medium text-[#151A18]"
-                    : "rounded-md px-3 py-2 text-sm text-[#4F5A55] hover:bg-[#E9EEEB] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0E5F4B]"
-                }
-                href={item.href}
-                key={item.label}
-              >
-                {item.label}
-              </a>
+    <SidebarProvider>
+      <main className="flex min-h-screen bg-background text-foreground">
+        <Sidebar>
+          <SidebarHeader>
+            <a className="flex items-center gap-2 overflow-hidden text-sm font-semibold tracking-wide" href="/">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
+                FO
+              </span>
+              <span className="truncate">FieldOps</span>
+            </a>
+            <SidebarTrigger />
+          </SidebarHeader>
+          <SidebarContent>
+            {appShellNavGroups.map((group) => (
+              <SidebarGroup key={group.label}>
+                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                <SidebarMenu>
+                  {group.items.map((item) => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton
+                        href={item.href}
+                        icon={item.icon}
+                        isActive={item.href === activeHref}
+                        label={item.label}
+                      />
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroup>
             ))}
-          </nav>
-        </aside>
-        <section className="flex min-w-0 flex-col">
-          <header className="flex h-16 items-center justify-between border-b border-[#D8DEDA] bg-[#FBFCFB] px-6 max-sm:px-4">
-            <div>
-              <p className="text-xs font-medium uppercase text-[#66736D]">{headerEyebrow}</p>
-              <h1 className="text-base font-semibold">{headerTitle}</h1>
+          </SidebarContent>
+          {userLabel ? (
+            <SidebarFooter>
+              <div className="flex items-center gap-2 rounded-md px-1.5 py-1.5">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-xs font-semibold text-sidebar-accent-foreground">
+                  {userLabel.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-xs text-sidebar-foreground/80">{userLabel}</span>
+                {onLogout ? (
+                  <button
+                    aria-label="Sair"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/60 outline-none transition-colors hover:bg-sidebar-accent hover:text-destructive focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    onClick={onLogout}
+                    title="Sair"
+                    type="button"
+                  >
+                    <LogOut aria-hidden size={16} />
+                  </button>
+                ) : null}
+              </div>
+            </SidebarFooter>
+          ) : null}
+        </Sidebar>
+        <section className="flex min-w-0 flex-1 flex-col">
+          <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-6 max-sm:px-4">
+            <div className="min-w-0">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{headerEyebrow}</p>
+              <h1 className="truncate text-lg font-semibold tracking-tight">{headerTitle}</h1>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-3">
               {headerAction}
               {userLabel ? (
-                <div className="flex items-center gap-2 border-l border-[#D8DEDA] pl-3">
-                  <span className="text-xs text-[#4F5A55]">{userLabel}</span>
+                <div className="flex items-center gap-2 border-l border-border pl-3 lg:hidden">
+                  <span className="text-xs text-muted-foreground">{userLabel}</span>
                   {onLogout ? (
                     <button
-                      className="rounded-md px-2 py-1 text-xs font-medium text-[#4F5A55] hover:bg-[#E9EEEB] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0E5F4B]"
+                      className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50"
                       onClick={onLogout}
                       type="button"
                     >
@@ -87,7 +181,7 @@ export function AppShell({
           </header>
           {children}
         </section>
-      </div>
-    </main>
+      </main>
+    </SidebarProvider>
   );
 }
