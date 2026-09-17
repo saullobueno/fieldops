@@ -4,6 +4,13 @@ FieldOps é uma plataforma de operações de serviços em campo (field service m
 
 É um projeto de portfólio construído em público, fase a fase, com um monorepo pnpm/Turborepo full-stack (NestJS + Next.js + Postgres/Drizzle) e disciplina de testes (Vitest + Playwright) desde o início. O histórico de decisões e limitações conhecidas de cada fase está em [`docs/`](docs) e [`docs/backlog.md`](docs/backlog.md).
 
+## Demo ao vivo
+
+- **Web (desktop)**: [fieldops-platformweb.vercel.app](https://fieldops-platformweb.vercel.app/)
+- **Mobile web (técnico)**: [fieldops-mobile.vercel.app](https://fieldops-mobile.vercel.app/)
+
+Use as [credenciais de login demo](#login-demo) para entrar. Instâncias no free tier (Vercel/Render/Neon/Upstash) — a primeira requisição após um período ocioso pode demorar alguns segundos para acordar a API.
+
 ## Principais funcionalidades
 
 - **Login real com RBAC** — sessão via token assinado, permissões e escopo de equipe/território resolvidos do Postgres (com fallback demo determinístico quando não há banco configurado).
