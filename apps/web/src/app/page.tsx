@@ -65,7 +65,7 @@ export default function HomePage(): React.ReactNode {
       userLabel={session.userName}
     >
       <div className="flex flex-1 flex-col gap-5 p-6 max-sm:p-4">
-        <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <section className="grid gap-5 md:grid-cols-3 xl:grid-cols-6">
           <KpiWidget />
         </section>
         <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">

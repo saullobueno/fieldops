@@ -8,3 +8,4 @@ export * from "./primitives/separator";
 export * from "./primitives/sidebar";
 export * from "./primitives/state";
 export * from "./primitives/table";
+export * from "./primitives/theme";
